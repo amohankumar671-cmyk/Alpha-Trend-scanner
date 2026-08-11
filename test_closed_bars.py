@@ -7,7 +7,13 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from datafeed import bar_is_closed, drop_incomplete_bar, history_status, normalize_symbol
+from datafeed import (
+    bar_is_closed,
+    drop_incomplete_bar,
+    ensure_datetime_index,
+    history_status,
+    normalize_symbol,
+)
 
 
 def _frame(last_start: datetime, n: int = 5, freq_minutes: int = 15) -> pd.DataFrame:
@@ -64,6 +70,31 @@ def test_history_status_building_message():
     assert ready["ready"] is True
 
 
+def test_ensure_datetime_index_fixes_plain_index():
+    """Regression: string Index used to crash resample with the banner error."""
+    last = datetime(2026, 8, 11, 15, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
+    df = _frame(last, n=12, freq_minutes=15)
+    broken = df.copy()
+    broken.index = pd.Index([str(x) for x in broken.index])
+    assert not isinstance(broken.index, pd.DatetimeIndex)
+
+    fixed = ensure_datetime_index(broken)
+    assert isinstance(fixed.index, pd.DatetimeIndex)
+    # Must be resample-safe after fix
+    resampled = fixed.resample("1h").agg({"Close": "last"}).dropna()
+    assert len(resampled) > 0
+
+
+def test_drop_incomplete_works_after_string_index():
+    last = datetime(2026, 8, 11, 15, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
+    now = datetime(2026, 8, 11, 15, 10, tzinfo=ZoneInfo("Asia/Kolkata"))
+    df = _frame(last, n=10, freq_minutes=15)
+    df.index = pd.Index([str(x) for x in df.index])
+    out, dropped = drop_incomplete_bar(df, "15m", now=now)
+    assert dropped is True
+    assert isinstance(out.index, pd.DatetimeIndex)
+
+
 def test_daily_not_dropped_by_closed_helper():
     last = datetime(2026, 8, 11, 0, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
     df = _frame(last, n=5, freq_minutes=24 * 60)
@@ -80,5 +111,7 @@ if __name__ == "__main__":
     test_keep_closed_15m_bar()
     test_bar_is_closed_1h()
     test_history_status_building_message()
+    test_ensure_datetime_index_fixes_plain_index()
+    test_drop_incomplete_works_after_string_index()
     test_daily_not_dropped_by_closed_helper()
     print("Closed-bar tests passed.")

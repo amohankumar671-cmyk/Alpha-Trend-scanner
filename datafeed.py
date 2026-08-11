@@ -88,6 +88,55 @@ def normalize_symbol(symbol: str) -> str:
     return f"{s}.NS"
 
 
+def ensure_datetime_index(df: pd.DataFrame, *, assume_tz: str = "Asia/Kolkata") -> pd.DataFrame:
+    """
+    Guarantee a DatetimeIndex before resample / closed-bar checks.
+
+    Without this, pandas raises:
+      Only valid with DatetimeIndex, TimedeltaIndex or PeriodIndex,
+      but got an instance of 'Index'
+    when the feed returns plain/string timestamps (common after CSV/API joins).
+    """
+    if df.empty:
+        return df
+
+    out = df.copy()
+
+    # If Datetime landed as a column (e.g. reset_index upstream), put it back.
+    for candidate in ("Datetime", "datetime", "Date", "date", "timestamp", "Timestamp"):
+        if candidate in out.columns and not isinstance(out.index, pd.DatetimeIndex):
+            out = out.set_index(candidate)
+            break
+
+    if not isinstance(out.index, pd.DatetimeIndex):
+        converted = pd.to_datetime(out.index, utc=False, errors="coerce")
+        if converted.isna().all():
+            raise TypeError(
+                "Candle index is not datetime-like; cannot build AlphaTrend history "
+                f"(got {type(out.index).__name__})"
+            )
+        out = out.copy()
+        out.index = converted
+        out = out[~out.index.isna()]
+
+    if not isinstance(out.index, pd.DatetimeIndex):
+        raise TypeError(
+            "Only valid with DatetimeIndex after normalization, "
+            f"but got {type(out.index).__name__}"
+        )
+
+    # NSE intraday bars should be timezone-aware for closed-bar math.
+    if out.index.tz is None:
+        try:
+            out.index = out.index.tz_localize(ZoneInfo(assume_tz))
+        except Exception:
+            # Fall back to UTC if localize conflicts (already-ambiguous stamps)
+            out.index = out.index.tz_localize(timezone.utc)
+
+    out = out[~out.index.duplicated(keep="last")].sort_index()
+    return out
+
+
 def bar_is_closed(
     bar_start: pd.Timestamp,
     interval: str,
@@ -133,6 +182,7 @@ def drop_incomplete_bar(
     """
     if df.empty or interval not in CLOSED_BAR_INTERVALS:
         return df, False
+    df = ensure_datetime_index(df)
     last_ts = df.index[-1]
     if bar_is_closed(last_ts, interval, now=now):
         return df, False
@@ -178,6 +228,9 @@ def fetch_ohlcv(
     cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
     data = data[cols].dropna(how="all")
     data = data.dropna(subset=["Close"])
+    # Critical: normalize BEFORE resample / closed-bar drop so we never hit
+    # "Only valid with DatetimeIndex ... got an instance of 'Index'".
+    data = ensure_datetime_index(data)
 
     if interval == "4h":
         ohlc = {
@@ -189,6 +242,7 @@ def fetch_ohlcv(
         }
         data = data.resample("4h").agg({k: v for k, v in ohlc.items() if k in data.columns})
         data = data.dropna(subset=["Close"])
+        data = ensure_datetime_index(data)
 
     if not include_forming:
         data, _ = drop_incomplete_bar(data, interval, now=now)
