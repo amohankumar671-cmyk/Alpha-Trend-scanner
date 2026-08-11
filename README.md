@@ -100,7 +100,7 @@ reports\YYYY-MM-DD\
 ### Multi-timeframe + EOD
 
 ```bat
-python scanner.py --fno --mtf --mtf-frames 15m,1h,4h,1d -l 3 --eod
+python scanner.py --fno --mtf --mtf-frames 5m,15m,1h,4h,1d,1wk -l 3 --eod
 ```
 
 ### Dashboard
@@ -110,6 +110,12 @@ streamlit run dashboard.py
 ```
 
 Open the URL shown (usually `http://localhost:8501`).
+
+**Dashboard tips**
+- Default frames include **5m** for short-term trend.
+- Each timeframe shows **signal_time (IST)** and **freshness** (`NEW` vs `N bar(s) ago`).
+- **trend_since** = when the current UP/DOWN direction started on that frame.
+- Use **Copy stock names** (text boxes) to Ctrl+A / Ctrl+C bare tickers for your broker.
 
 ### Smoke test
 

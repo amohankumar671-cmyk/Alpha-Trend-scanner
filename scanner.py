@@ -21,6 +21,7 @@ from datafeed import (
     CLOSED_BAR_INTERVALS,
     drop_incomplete_bar,
     fetch_ohlcv,
+    format_ist,
     history_status,
     min_bars_required,
     parse_symbols,
@@ -72,11 +73,18 @@ def scan_symbol(
             "symbol": symbol,
             "signal": info["signal"],
             "bar_ago": info["bar_ago"],
+            "signal_time": str(info["signal_time"]) if info.get("signal_time") is not None else None,
+            "signal_time_ist": format_ist(info.get("signal_time")),
+            "freshness": info.get("freshness"),
+            "trend_since": str(info["trend_since"]) if info.get("trend_since") is not None else None,
+            "trend_since_ist": format_ist(info.get("trend_since")),
+            "trend_bars": info.get("trend_bars"),
             "close": info["close"],
             "alphatrend": info["alphatrend"],
             "trend_up": info["trend_up"],
             "price_vs_at": info["price_vs_at"],
             "last_bar": str(last_time),
+            "last_bar_ist": format_ist(last_time),
             "bars": len(at),
             "bars_needed": min_bars_required(ap),
             "dropped_forming": dropped,
@@ -102,15 +110,22 @@ def format_row(row: dict) -> str:
     sig = row["signal"]
     trend = "UP" if row.get("trend_up") else "DOWN"
     bar = "" if row.get("bar_ago") is None else f"  ({row['bar_ago']} bar(s) ago)"
+    fresh = row.get("freshness")
+    if fresh == "NEW":
+        bar = "  [NEW]"
+    elif fresh and row.get("bar_ago") is not None:
+        bar = f"  ({fresh})"
     at = row.get("alphatrend")
     close = row.get("close")
     pva = row.get("price_vs_at") or "-"
     at_s = f"{at:.4f}" if at is not None else "n/a"
     close_s = f"{close:.4f}" if close is not None else "n/a"
     closed = " closed" if row.get("dropped_forming") else ""
+    when = row.get("signal_time_ist") or ""
+    when_s = f"  @ {when}" if when else ""
     return (
         f"{row['symbol']:<14} {sig:<5}  trend={trend:<4}  "
-        f"price={close_s:>10}  AT={at_s:>10}  vs_AT={pva:<5}{bar}{closed}"
+        f"price={close_s:>10}  AT={at_s:>10}  vs_AT={pva:<5}{bar}{when_s}{closed}"
     )
 
 
@@ -375,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mtf-frames",
         default=",".join(DEFAULT_MTF_FRAMES),
-        help="Comma-separated frames for --mtf (default: 15m,1h,4h,1d,1wk)",
+        help="Comma-separated frames for --mtf (default: 5m,15m,1h,4h,1d,1wk)",
     )
     parser.add_argument(
         "--mtf-min-score",

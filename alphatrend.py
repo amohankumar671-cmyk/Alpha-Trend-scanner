@@ -191,27 +191,81 @@ def compute_alphatrend(
     return out
 
 
+def _bar_loc(index: pd.Index, ts) -> int:
+    loc = index.get_loc(ts)
+    if isinstance(loc, slice):
+        return int(loc.start)
+    if isinstance(loc, np.ndarray):
+        return int(np.flatnonzero(loc)[-1])
+    return int(loc)
+
+
+def trend_change_bar(df_with_at: pd.DataFrame) -> dict:
+    """
+    Find when the current AlphaTrend direction (AT vs AT[2]) started.
+
+    Returns bar timestamp + bars since the flip (0 = flipped on the last closed bar).
+    """
+    empty = {"trend_since": None, "trend_bars": None}
+    if df_with_at.empty or "trend_up" not in df_with_at.columns:
+        return empty
+
+    trend = df_with_at["trend_up"]
+    if pd.isna(trend.iloc[-1]):
+        return empty
+
+    current = bool(trend.iloc[-1])
+    # Walk back while trend matches; first mismatch is the bar before the change.
+    since_idx = 0
+    for i in range(len(trend) - 2, -1, -1):
+        val = trend.iloc[i]
+        if pd.isna(val) or bool(val) != current:
+            since_idx = i + 1
+            break
+    else:
+        # Never flipped in history — use first valid trend bar
+        for i, val in enumerate(trend):
+            if pd.notna(val):
+                since_idx = i
+                break
+
+    ts = df_with_at.index[since_idx]
+    return {
+        "trend_since": ts,
+        "trend_bars": len(df_with_at) - 1 - since_idx,
+    }
+
+
 def latest_signal(df_with_at: pd.DataFrame, lookback: int = 1) -> dict:
     """Summarize signals in the last `lookback` bars for scanner output."""
     empty = {
         "signal": "NONE",
         "bar_ago": None,
+        "signal_time": None,
+        "freshness": None,
         "alphatrend": None,
         "close": None,
         "trend_up": None,
         "price_vs_at": None,
+        "trend_since": None,
+        "trend_bars": None,
     }
     if df_with_at.empty:
         return empty
 
     last = df_with_at.iloc[-1]
+    trend_meta = trend_change_bar(df_with_at)
     result = {
         "signal": "NONE",
         "bar_ago": None,
+        "signal_time": None,
+        "freshness": None,
         "alphatrend": float(last["AlphaTrend"]) if pd.notna(last["AlphaTrend"]) else None,
         "close": float(last["Close"]),
         "trend_up": bool(last["trend_up"]) if pd.notna(last["trend_up"]) else None,
         "price_vs_at": None,
+        "trend_since": trend_meta["trend_since"],
+        "trend_bars": trend_meta["trend_bars"],
     }
     if result["alphatrend"] is not None:
         result["price_vs_at"] = "ABOVE" if result["close"] > result["alphatrend"] else "BELOW"
@@ -227,12 +281,12 @@ def latest_signal(df_with_at: pd.DataFrame, lookback: int = 1) -> dict:
 
     events.sort(key=lambda x: x[0])
     ts, sig = events[-1]
-    loc = df_with_at.index.get_loc(ts)
-    if isinstance(loc, slice):
-        loc = loc.start
-    elif isinstance(loc, np.ndarray):
-        loc = int(np.flatnonzero(loc)[-1])
-    bar_ago = len(df_with_at) - 1 - int(loc)
+    bar_ago = len(df_with_at) - 1 - _bar_loc(df_with_at.index, ts)
     result["signal"] = sig
     result["bar_ago"] = bar_ago
+    result["signal_time"] = ts
+    if bar_ago == 0:
+        result["freshness"] = "NEW"
+    else:
+        result["freshness"] = f"{bar_ago} bar(s) ago"
     return result

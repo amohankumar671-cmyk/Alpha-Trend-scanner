@@ -15,7 +15,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from datafeed import DEFAULT_MTF_FRAMES, DEFAULT_SYMBOLS, parse_symbols
+from datafeed import DEFAULT_MTF_FRAMES, DEFAULT_SYMBOLS, bare_ticker, parse_symbols
 from mtf import (
     analyze_symbol_mtf,
     portfolio_metrics,
@@ -124,6 +124,21 @@ h1, h2, h3, .brand {
 .metric-value.bear { color: var(--bear); }
 .metric-value.mix { color: var(--mix); }
 
+.copy-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92rem;
+  user-select: all;
+  -webkit-user-select: all;
+  cursor: text;
+  color: var(--ink);
+  line-height: 1.45;
+  word-break: break-all;
+}
+
 div[data-testid="stSidebar"] {
   background: #f7fafb;
   border-right: 1px solid var(--line);
@@ -171,26 +186,53 @@ def build_heatmap(summaries: list[dict], timeframes: list[str]) -> go.Figure:
     symbols = [s["symbol"] for s in summaries]
     z = []
     text = []
+    hover = []
     for s in summaries:
         row_z = []
         row_t = []
+        row_h = []
         tfs = s.get("timeframes") or {}
         for tf in timeframes:
             cell = tfs.get(tf) or {}
+            trend_lbl = (
+                "UP"
+                if cell.get("trend_up")
+                else ("DOWN" if cell.get("trend_up") is False else "n/a")
+            )
+            sig_time = cell.get("signal_time_ist") or "—"
+            trend_since = cell.get("trend_since_ist") or "—"
+            fresh = cell.get("freshness") or "—"
             if cell.get("signal") == "ERROR" or cell.get("trend_up") is None:
                 row_z.append(0)
                 row_t.append("n/a")
+                row_h.append(f"{s['symbol']} · {tf}<br>n/a")
             elif cell.get("signal") == "BUY":
                 row_z.append(2)
                 row_t.append("BUY / UP" if cell.get("trend_up") else "BUY")
+                row_h.append(
+                    f"{s['symbol']} · {tf}<br>BUY · trend {trend_lbl}"
+                    f"<br>signal @ {sig_time} ({fresh})"
+                    f"<br>trend since {trend_since}"
+                )
             elif cell.get("signal") == "SELL":
                 row_z.append(-2)
                 row_t.append("SELL / DOWN" if not cell.get("trend_up") else "SELL")
+                row_h.append(
+                    f"{s['symbol']} · {tf}<br>SELL · trend {trend_lbl}"
+                    f"<br>signal @ {sig_time} ({fresh})"
+                    f"<br>trend since {trend_since}"
+                )
             else:
                 row_z.append(1 if cell.get("trend_up") else -1)
                 row_t.append("UP" if cell.get("trend_up") else "DOWN")
+                row_h.append(
+                    f"{s['symbol']} · {tf}<br>trend {trend_lbl}"
+                    f"<br>no BUY/SELL in lookback"
+                    f"<br>trend since {trend_since}"
+                )
         z.append(row_z)
         text.append(row_t)
+        hover.append(row_h)
 
     fig = go.Figure(
         data=go.Heatmap(
@@ -199,6 +241,7 @@ def build_heatmap(summaries: list[dict], timeframes: list[str]) -> go.Figure:
             y=symbols,
             text=text,
             texttemplate="%{text}",
+            customdata=hover,
             colorscale=[
                 [0.0, "#b42318"],
                 [0.25, "#f0b4ae"],
@@ -208,7 +251,7 @@ def build_heatmap(summaries: list[dict], timeframes: list[str]) -> go.Figure:
             ],
             zmid=0,
             showscale=False,
-            hovertemplate="%{y} · %{x}<br>%{text}<extra></extra>",
+            hovertemplate="%{customdata}<extra></extra>",
         )
     )
     fig.update_layout(
@@ -358,6 +401,7 @@ def sidebar_controls():
         "Timeframes",
         options=["5m", "15m", "1h", "4h", "1d", "1wk"],
         default=default_tf,
+        help="5m included for short-term trend; signals use closed bars by default",
     )
     multiplier = st.sidebar.slider("Multiplier (coeff)", 0.5, 3.0, 1.0, 0.1)
     ap = st.sidebar.slider("Common period (AP)", 5, 50, 14, 1)
@@ -401,7 +445,7 @@ def main() -> None:
         """
 <div class="brand-wrap">
   <p class="brand">AlphaTrend</p>
-  <p class="brand-sub">NSE F&amp;O signal desk — validate AlphaTrend on closed 5m/15m/1h candles across the full derivatives universe.</p>
+  <p class="brand-sub">NSE F&amp;O signal desk — validate AlphaTrend on closed 5m/15m/1h candles across the full derivatives universe. Hover heatmap cells for signal time · copy tickers below the watchlist.</p>
 </div>
 """,
         unsafe_allow_html=True,
@@ -460,8 +504,9 @@ def main() -> None:
 
     st.subheader("Watchlist numbers")
     show = table.copy()
-    # prettier column order
+    # Prefer copy-friendly ticker first, then Yahoo symbol
     base_cols = [
+        "ticker",
         "symbol",
         "mtf_score",
         "bias",
@@ -473,8 +518,20 @@ def main() -> None:
         "avg_dist_pct",
         "close",
     ]
-    extra = [c for c in show.columns if c not in base_cols]
-    show = show[base_cols + extra]
+    # Keep trend/signal/time columns in a readable order per TF
+    extra = []
+    for tf in frames:
+        for suffix in ("_trend", "_signal", "_fresh", "_signal_time", "_trend_since", "_dist"):
+            col = f"{tf}{suffix}"
+            if col in show.columns:
+                extra.append(col)
+    leftover = [c for c in show.columns if c not in base_cols and c not in extra]
+    show = show[[c for c in base_cols + extra + leftover if c in show.columns]]
+
+    st.caption(
+        "NEW = signal on the latest closed bar · “N bar(s) ago” = still inside lookback but older. "
+        "trend_since = when the current UP/DOWN direction started."
+    )
     st.dataframe(
         show.style.format(
             {
@@ -487,8 +544,61 @@ def main() -> None:
         ),
         use_container_width=True,
         hide_index=True,
-        height=min(420, 48 + 35 * len(show)),
+        height=min(420, 48 + 35 * min(len(show), 12)),
+        column_config={
+            "ticker": st.column_config.TextColumn("ticker", help="Bare name — select cell and Ctrl+C"),
+            "symbol": st.column_config.TextColumn("symbol", help="Yahoo ticker e.g. RELIANCE.NS"),
+        },
     )
+
+    # Easy live copy of names (Streamlit tables are awkward to multi-select)
+    st.markdown("##### Copy stock names")
+    copy_mode = st.radio(
+        "Copy list",
+        options=["Active signals only", "All scanned", "Selected symbol"],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    active_syms = [
+        s["symbol"]
+        for s in summaries
+        if (s.get("buy_tf") or 0) > 0 or (s.get("sell_tf") or 0) > 0
+    ]
+    if copy_mode.startswith("Active"):
+        copy_syms = active_syms or [s["symbol"] for s in summaries[:20]]
+    elif copy_mode.startswith("All"):
+        copy_syms = [s["symbol"] for s in summaries]
+    else:
+        copy_syms = []  # filled after selectbox below — placeholder for now
+
+    # Selected-symbol copy is wired after the detail picker; for other modes show now.
+    if not copy_mode.startswith("Selected"):
+        bare = [bare_ticker(s) for s in copy_syms]
+        c_a, c_b = st.columns(2)
+        with c_a:
+            st.caption("Bare tickers (broker paste) — click text, Ctrl+A, Ctrl+C")
+            st.markdown(
+                f'<div class="copy-box">{html.escape(", ".join(bare))}</div>',
+                unsafe_allow_html=True,
+            )
+            st.text_area(
+                "bare_copy",
+                value="\n".join(bare),
+                height=100,
+                label_visibility="collapsed",
+            )
+        with c_b:
+            st.caption("Yahoo symbols (.NS)")
+            st.markdown(
+                f'<div class="copy-box">{html.escape(", ".join(copy_syms))}</div>',
+                unsafe_allow_html=True,
+            )
+            st.text_area(
+                "yahoo_copy",
+                value="\n".join(copy_syms),
+                height=100,
+                label_visibility="collapsed",
+            )
 
     st.subheader("Symbol detail")
     symbols = [s["symbol"] for s in summaries]
@@ -497,6 +607,17 @@ def main() -> None:
         pick = st.selectbox("Symbol", symbols)
     with c2:
         focus_tf = st.selectbox("Chart timeframe", frames, index=min(3, len(frames) - 1))
+
+    # Selected-symbol copy panel
+    if copy_mode.startswith("Selected"):
+        bare_one = bare_ticker(pick)
+        st.markdown("##### Copy selected")
+        st.markdown(
+            f'<div class="copy-box">{html.escape(bare_one)} &nbsp;&nbsp;|&nbsp;&nbsp; '
+            f'{html.escape(pick)}</div>',
+            unsafe_allow_html=True,
+        )
+        st.code(f"{bare_one}\n{pick}", language=None)
 
     summary = next(s for s in summaries if s["symbol"] == pick)
 
@@ -529,7 +650,12 @@ def main() -> None:
             {
                 "timeframe": tf,
                 "trend": "UP" if cell.get("trend_up") else ("DOWN" if cell.get("trend_up") is False else "—"),
+                "trend_since (IST)": cell.get("trend_since_ist") or "—",
+                "trend_bars": cell.get("trend_bars"),
                 "signal": cell.get("signal"),
+                "freshness": cell.get("freshness") or "—",
+                "signal_time (IST)": cell.get("signal_time_ist") or "—",
+                "last_bar (IST)": cell.get("last_bar_ist") or "—",
                 "dist_pct": cell.get("dist_pct"),
                 "atr_pct": cell.get("atr_pct"),
                 "close": cell.get("close"),

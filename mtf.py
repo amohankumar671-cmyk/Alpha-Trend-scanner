@@ -18,6 +18,7 @@ from datafeed import (
     CLOSED_BAR_INTERVALS,
     drop_incomplete_bar,
     fetch_ohlcv,
+    format_ist,
     history_status,
     min_bars_required,
 )
@@ -92,11 +93,18 @@ def analyze_timeframe(
         if atr is not None and info["close"]:
             atr_pct = (atr / info["close"]) * 100.0
 
+        last_bar = at.index[-1]
         return {
             "symbol": symbol,
             "interval": interval,
             "signal": info["signal"],
             "bar_ago": info["bar_ago"],
+            "signal_time": str(info["signal_time"]) if info.get("signal_time") is not None else None,
+            "signal_time_ist": format_ist(info.get("signal_time")),
+            "freshness": info.get("freshness"),
+            "trend_since": str(info["trend_since"]) if info.get("trend_since") is not None else None,
+            "trend_since_ist": format_ist(info.get("trend_since")),
+            "trend_bars": info.get("trend_bars"),
             "close": info["close"],
             "alphatrend": info["alphatrend"],
             "trend_up": info["trend_up"],
@@ -104,7 +112,8 @@ def analyze_timeframe(
             "dist_pct": dist,
             "atr": atr,
             "atr_pct": atr_pct,
-            "last_bar": str(at.index[-1]),
+            "last_bar": str(last_bar),
+            "last_bar_ist": format_ist(last_bar),
             "bars": len(at),
             "bars_needed": min_bars_required(ap),
             "dropped_forming": dropped,
@@ -264,7 +273,7 @@ def analyze_symbol_mtf(
 
     summary = summarize_mtf(rows)
     # Prefer daily close when available for display
-    for preferred in ("1d", "4h", "1h", "1wk", "15m"):
+    for preferred in ("1d", "4h", "1h", "1wk", "15m", "5m"):
         tf = summary["timeframes"].get(preferred)
         if tf and tf.get("close") is not None:
             summary["close"] = tf["close"]
@@ -364,11 +373,14 @@ def portfolio_metrics(summaries: list[dict]) -> dict:
 
 def summaries_to_frame(summaries: list[dict], timeframes: Iterable[str]) -> pd.DataFrame:
     """Flat table for dashboard / CSV (one row per symbol)."""
+    from datafeed import bare_ticker
+
     frames = list(timeframes)
     rows = []
     for s in summaries:
         row = {
             "symbol": s["symbol"],
+            "ticker": bare_ticker(s["symbol"]),
             "mtf_score": s.get("mtf_score"),
             "bias": s.get("bias"),
             "alignment_pct": s.get("alignment_pct"),
@@ -386,6 +398,9 @@ def summaries_to_frame(summaries: list[dict], timeframes: Iterable[str]) -> pd.D
             sig = cell.get("signal") or "—"
             row[f"{tf}_trend"] = trend
             row[f"{tf}_signal"] = sig
+            row[f"{tf}_signal_time"] = cell.get("signal_time_ist") or "—"
+            row[f"{tf}_fresh"] = cell.get("freshness") or "—"
+            row[f"{tf}_trend_since"] = cell.get("trend_since_ist") or "—"
             dist = cell.get("dist_pct")
             row[f"{tf}_dist"] = round(dist, 3) if dist is not None else None
         rows.append(row)
