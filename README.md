@@ -2,113 +2,140 @@
 
 Validate AlphaTrend BUY/SELL signals across **all NSE F&O equities**, using **closed candles only** on 5m / 15m / 1h.
 
-## 1) Install dependencies (Windows)
+## Important (Windows)
 
-Open **Command Prompt** or **PowerShell** inside the project folder  
-(`Alpha-Trend-scanner-main`):
+1. Open the **Alpha-Trend-scanner** folder (the one that contains `scanner.py` and `dashboard.py`).
+2. Do **not** run these commands from `CVC-trading-method` — that is a different project.
+3. Use **Python 3.12** (recommended). Python 3.14 on some Windows PCs is broken (`_ctypes` DLL error).
+
+---
+
+## 1) Fix Python first (if you see `_ctypes` / `ensurepip` errors)
+
+Your log shows:
+
+`ImportError: DLL load failed while importing _ctypes`
+
+That means the Python install itself is damaged. Fix it before installing packages:
+
+1. Uninstall **Python 3.14** from Windows Settings → Apps.
+2. Download **Python 3.12.x** from https://www.python.org/downloads/windows/
+3. Run installer and tick:
+   - **Add python.exe to PATH**
+   - **Install for all users** (optional)
+4. Open a **new** Command Prompt and check:
 
 ```bat
-cd "C:\Users\YOUR_USER\My project\Alpha-Trend-scanner-main"
+py -3.12 --version
+py -3.12 -c "import ctypes; print('ctypes OK')"
+```
 
-python -m venv .venv
+If that prints `ctypes OK`, continue.
+
+---
+
+## 2) Go to the correct folder
+
+Find where you extracted/cloned the scanner. Examples:
+
+```bat
+cd /d "%USERPROFILE%\Downloads\Alpha-Trend-scanner-main"
+```
+
+or (if under Documents / My project):
+
+```bat
+cd /d "%USERPROFILE%\Documents\My project\Alpha-Trend-scanner-main"
+```
+
+Confirm you see `scanner.py`:
+
+```bat
+dir scanner.py
+```
+
+If `File Not Found`, you are still in the wrong folder.
+
+---
+
+## 3) Install dependencies
+
+```bat
+py -3.12 -m venv .venv
 .venv\Scripts\activate
-
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### What gets installed
+### Packages installed
 
 | Package | Why |
 |---------|-----|
-| `pandas` | tables / CSV reports |
+| `pandas` | tables / CSV / EOD reports |
 | `numpy` | indicator math |
-| `yfinance` | NSE price candles (`SYMBOL.NS`) |
-| `requests` | live NSE F&O symbol list |
-| `streamlit` | web dashboard |
-| `plotly` | dashboard charts |
+| `yfinance` | NSE candles (`SYMBOL.NS`) |
+| `requests` | NSE F&O symbol list |
+| `streamlit` | dashboard |
+| `plotly` | charts |
 
-Python **3.10+** recommended.
+---
 
-## 2) How to run
+## 4) Run
 
-### A) Full NSE F&O scan + **EOD report** (recommended)
+### F&O scan + EOD report
 
 ```bat
 python scanner.py --fno -i 15m -l 3 --signal-only --eod
 ```
 
-Creates dated folder:
+Creates:
 
 ```text
 reports\YYYY-MM-DD\
-  eod_all_15m.csv
   eod_signals_15m.csv
+  eod_all_15m.csv
   eod_summary_15m.txt
 ```
 
-### B) Multi-timeframe F&O scan + EOD report
+### Multi-timeframe + EOD
 
 ```bat
 python scanner.py --fno --mtf --mtf-frames 15m,1h,4h,1d -l 3 --eod
 ```
 
-Writes:
-
-```text
-reports\YYYY-MM-DD\
-  eod_mtf_all.csv
-  eod_mtf_signals.csv
-  eod_mtf_summary.txt
-```
-
-### C) Dashboard (browser UI)
+### Dashboard
 
 ```bat
 streamlit run dashboard.py
 ```
 
-Then open the local URL Streamlit prints (usually `http://localhost:8501`).  
-Choose **NSE F&O (all)** in the sidebar.
+Open the URL shown (usually `http://localhost:8501`).
 
-### D) Quick smoke test (first 20 names)
+### Smoke test
 
 ```bat
 python scanner.py --fno --limit 20 -i 15m -l 3 --eod
 ```
 
-### E) List F&O universe
+---
 
-```bat
-python scanner.py --list-fno --refresh-fno
-```
+## What went wrong in your log
 
-## 3) EOD report — yes, this is included
+| Error | Cause |
+|-------|--------|
+| `The system cannot find the path specified` | `YOUR_USER` was a placeholder, not a real path |
+| Commands ran in `C:\Users\mktj1\CVC-trading-method` | Wrong project folder |
+| `ensurepip` / `.venv` failed | Broken Python 3.14 |
+| `_ctypes` DLL errors from pip | Same broken Python install |
+| `pip` tried to install `flask`, `nse`, `schedule` | That is **CVC-trading-method** `requirements.txt`, not this scanner |
 
-Use **`--eod`**. Signals are saved automatically under `reports\YYYY-MM-DD\`.
+---
 
-| File | Contents |
-|------|----------|
-| `eod_signals_*.csv` | Only BUY / SELL rows |
-| `eod_all_*.csv` | Full scan (including NONE / BUILDING) |
-| `eod_summary_*.txt` | Human-readable day summary |
+## EOD report
 
-Optional custom folder:
+Yes — use `--eod`. Signals are saved under `reports\YYYY-MM-DD\`.
 
-```bat
-python scanner.py --fno -i 15m --eod --reports-dir D:\AT_Reports
-```
-
-You can still use `--csv myfile.csv` for a one-off file in addition to `--eod`.
-
-## Closed bars
-
-| Mode | Flag |
-|------|------|
-| Closed candles only (default) | _(none)_ |
-| Live / unconfirmed forming bar | `--include-forming` |
-
-`BUILDING history…` means not enough closed bars yet — wait for candles to finish.
+---
 
 ## Tests
 
