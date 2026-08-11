@@ -13,7 +13,14 @@ from typing import Iterable
 import pandas as pd
 
 from alphatrend import compute_alphatrend, latest_signal
-from datafeed import DEFAULT_MTF_FRAMES, fetch_ohlcv
+from datafeed import (
+    DEFAULT_MTF_FRAMES,
+    CLOSED_BAR_INTERVALS,
+    drop_incomplete_bar,
+    fetch_ohlcv,
+    history_status,
+    min_bars_required,
+)
 
 # Higher timeframes weigh more in the confluence score.
 TF_WEIGHTS: dict[str, float] = {
@@ -40,16 +47,35 @@ def analyze_timeframe(
     no_volume: bool = False,
     lookback: int = 3,
     period: str | None = None,
+    *,
+    include_forming: bool = False,
 ) -> dict:
-    """Run AlphaTrend on one symbol/interval and return metric row."""
+    """
+    Run AlphaTrend on one symbol/interval and return metric row.
+
+    Closed-bar mode (default): 5m/15m/1h/4h only evaluate fully closed candles.
+    Pass include_forming=True for a live-but-unconfirmed read of the in-progress bar.
+    """
     try:
-        df = fetch_ohlcv(symbol, interval, period)
-        if len(df) < ap + 5:
+        # Fetch with forming bar kept so we can report whether it was excluded.
+        raw = fetch_ohlcv(symbol, interval, period, include_forming=True)
+        dropped = False
+        if include_forming or interval not in CLOSED_BAR_INTERVALS:
+            df = raw
+        else:
+            df, dropped = drop_incomplete_bar(raw, interval)
+
+        status = history_status(len(df), ap=ap, dropped_forming=dropped)
+        if not status["ready"]:
             return {
                 "symbol": symbol,
                 "interval": interval,
-                "signal": "ERROR",
-                "error": f"Insufficient bars ({len(df)})",
+                "signal": "BUILDING",
+                "bars": status["bars"],
+                "bars_needed": status["bars_needed"],
+                "dropped_forming": dropped,
+                "include_forming": include_forming,
+                "error": status["message"],
             }
 
         at = compute_alphatrend(
@@ -80,6 +106,9 @@ def analyze_timeframe(
             "atr_pct": atr_pct,
             "last_bar": str(at.index[-1]),
             "bars": len(at),
+            "bars_needed": min_bars_required(ap),
+            "dropped_forming": dropped,
+            "include_forming": include_forming,
             "error": None,
             "series": at,
         }
@@ -125,9 +154,15 @@ def summarize_mtf(tf_rows: list[dict]) -> dict:
       - avg_dist_pct   : mean distance of price vs AlphaTrend
       - bias           : BULL / BEAR / MIXED
     """
-    valid = [r for r in tf_rows if r.get("signal") != "ERROR" and r.get("trend_up") is not None]
+    valid = [
+        r
+        for r in tf_rows
+        if r.get("signal") not in ("ERROR", "BUILDING") and r.get("trend_up") is not None
+    ]
     symbol = tf_rows[0]["symbol"] if tf_rows else "?"
+    building = [r for r in tf_rows if r.get("signal") == "BUILDING"]
     if not valid:
+        bias = "BUILDING" if building and len(building) == len(tf_rows) else "ERROR"
         return {
             "symbol": symbol,
             "mtf_score": None,
@@ -137,10 +172,10 @@ def summarize_mtf(tf_rows: list[dict]) -> dict:
             "buy_tf": 0,
             "sell_tf": 0,
             "avg_dist_pct": None,
-            "bias": "ERROR",
+            "bias": bias,
             "tf_count": 0,
-            "error": "; ".join(r.get("error") or "error" for r in tf_rows),
-            "timeframes": {r["interval"]: r for r in tf_rows},
+            "error": "; ".join(r.get("error") or r.get("signal") or "error" for r in tf_rows),
+            "timeframes": {r["interval"]: {k: v for k, v in r.items() if k != "series"} for r in tf_rows},
         }
 
     bull = sum(1 for r in valid if r["trend_up"])
@@ -200,6 +235,8 @@ def analyze_symbol_mtf(
     no_volume: bool = False,
     lookback: int = 3,
     workers: int = 4,
+    *,
+    include_forming: bool = False,
 ) -> dict:
     frames = list(timeframes)
     rows: list[dict] = []
@@ -213,6 +250,8 @@ def analyze_symbol_mtf(
                 ap,
                 no_volume,
                 lookback,
+                None,
+                include_forming=include_forming,
             ): tf
             for tf in frames
         }
@@ -241,6 +280,8 @@ def scan_universe_mtf(
     no_volume: bool = False,
     lookback: int = 3,
     workers: int = 4,
+    *,
+    include_forming: bool = False,
 ) -> list[dict]:
     """Scan many symbols; each symbol runs its TF jobs internally."""
     results: list[dict] = []
@@ -257,6 +298,7 @@ def scan_universe_mtf(
                 no_volume,
                 lookback,
                 max(1, workers // outer or 1),
+                include_forming=include_forming,
             ): sym
             for sym in symbols
         }
@@ -270,7 +312,13 @@ def scan_universe_mtf(
 
 def portfolio_metrics(summaries: list[dict]) -> dict:
     """Aggregate watchlist-level dashboard numbers."""
-    ok = [s for s in summaries if s.get("bias") != "ERROR" and s.get("mtf_score") is not None]
+    ok = [
+        s
+        for s in summaries
+        if s.get("bias") not in ("ERROR", "BUILDING") and s.get("mtf_score") is not None
+    ]
+    building = sum(1 for s in summaries if s.get("bias") == "BUILDING")
+    errors = sum(1 for s in summaries if s.get("bias") == "ERROR")
     if not ok:
         return {
             "symbols": len(summaries),
@@ -284,6 +332,8 @@ def portfolio_metrics(summaries: list[dict]) -> dict:
             "avg_alignment_pct": None,
             "avg_dist_pct": None,
             "breadth": None,
+            "building": building,
+            "errors": errors,
         }
 
     scores = [s["mtf_score"] for s in ok]
@@ -307,6 +357,8 @@ def portfolio_metrics(summaries: list[dict]) -> dict:
         "avg_alignment_pct": round(sum(aligns) / len(aligns), 1) if aligns else None,
         "avg_dist_pct": round(sum(dists) / len(dists), 3) if dists else None,
         "breadth": round(100.0 * bull_c / len(ok), 1),
+        "building": building,
+        "errors": errors,
     }
 
 

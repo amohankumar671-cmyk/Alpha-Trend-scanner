@@ -1,21 +1,6 @@
-# AlphaTrend Scanner
+# AlphaTrend Scanner (NSE F&O)
 
-Python port of KivancOzbilgic's AlphaTrend Pine Script v5, with:
-
-- single-timeframe scanner
-- **multi-timeframe (MTF) confluence analysis**
-- **Streamlit dashboard** with desk metric numbers
-
-## How AlphaTrend works
-
-| Step | Formula |
-|------|---------|
-| ATR | `SMA(TrueRange, AP)` with default `AP=14` |
-| Support trail | `upT = low − ATR × coeff` |
-| Resistance trail | `downT = high + ATR × coeff` |
-| Momentum gate | `MFI(hlc3, AP) ≥ 50` (or `RSI(close, AP) ≥ 50` if no volume) |
-| Line | Bullish → ratchet with `upT`. Bearish → ratchet with `downT`. |
-| BUY / SELL | Cross of `AlphaTrend` vs `AlphaTrend[2]`, alternating filter |
+Validate AlphaTrend BUY/SELL signals across **all NSE F&O equities**, using **closed candles only** on 5m / 15m / 1h so signals do not flicker while a bar is still forming.
 
 ## Install
 
@@ -23,77 +8,67 @@ Python port of KivancOzbilgic's AlphaTrend Pine Script v5, with:
 pip install -r requirements.txt
 ```
 
-## Dashboard (MTF + numbers)
+## NSE F&O scan (main use)
+
+```bash
+# List the F&O universe (cached under nse_fno_symbols.json)
+python scanner.py --list-fno --refresh-fno
+
+# Validate signals on all F&O stocks, 15m closed bars
+python scanner.py --fno -i 15m -l 3 --signal-only --csv fno_signals.csv
+
+# Multi-timeframe confluence across the F&O book
+python scanner.py --fno --mtf --mtf-frames 15m,1h,4h,1d -l 3 --csv fno_mtf.csv
+
+# Smoke test first 20 names
+python scanner.py --fno --limit 20 -i 15m -l 3
+```
+
+### Closed bars vs forming bars
+
+| Mode | Flag | Behavior |
+|------|------|----------|
+| **Closed (default)** | _(none)_ | 5m/15m/1h/4h evaluate only fully finished candles — no early flickers |
+| **Live / unconfirmed** | `--include-forming` | One-line switch back to the in-progress bar read |
+
+While history is still warming up you may see `BUILDING` instead of an error:
+
+`Building history: need 19 closed bars, have 12 (in-progress bar excluded)`
+
+That is expected near session open / for thin names; counts grow by one when each bar closes.
+
+## Dashboard
 
 ```bash
 streamlit run dashboard.py
 ```
 
-The desk shows:
+Pick **NSE F&O (all)** in the sidebar. Leave “Include forming bar” unchecked for confirmed signals.
 
-| Number | Meaning |
-|--------|---------|
-| **MTF Score** | Weighted confluence −100…+100 across selected timeframes |
-| **Breadth** | % of watchlist symbols with bullish bias |
-| **Alignment** | Avg % of timeframes trending up per symbol |
-| **BUY TFs / SELL TFs** | Active signal counts across all frames |
-| **Dist vs AT** | Avg % distance of price to AlphaTrend |
+## How AlphaTrend works
 
-Also includes a timeframe heatmap, score bars, per-symbol detail chart, and CSV download.
-
-## CLI scan
-
-```bash
-# Single timeframe
-python scanner.py -f symbols.txt -i 1d -l 3
-
-# Multi-timeframe confluence
-python scanner.py --mtf -f symbols.txt -l 3
-
-# Only strong MTF setups
-python scanner.py --mtf -s AAPL,MSFT,NVDA --mtf-min-score 40
-
-# Custom frames + CSV
-python scanner.py --mtf --mtf-frames 1h,4h,1d,1wk --csv mtf.csv
-```
-
-### CLI options
-
-| Flag | Meaning |
+| Step | Formula |
 |------|---------|
-| `-m / --multiplier` | Trail width (`coeff`) |
-| `--ap` | Common period (`AP`) |
-| `--no-volume` | RSI gate instead of MFI |
-| `-i` | Single-TF interval |
-| `--mtf` | Enable multi-timeframe mode |
-| `--mtf-frames` | Frames list (default `15m,1h,4h,1d,1wk`) |
-| `--mtf-min-score` | Filter by absolute MTF score |
-| `-l` | Signal lookback bars |
+| ATR | `SMA(TrueRange, AP)` |
+| Trails | `upT = low − ATR×coeff`, `downT = high + ATR×coeff` |
+| Gate | `MFI ≥ 50` (or RSI if `--no-volume`) |
+| BUY / SELL | Cross of `AT` vs `AT[2]` with alternating filter |
 
-## Library use
+## Files
 
-```python
-from mtf import analyze_symbol_mtf, scan_universe_mtf, portfolio_metrics
-
-summary = analyze_symbol_mtf("AAPL", timeframes=["1h", "4h", "1d", "1wk"])
-print(summary["mtf_score"], summary["bias"], summary["alignment_pct"])
-
-rows = scan_universe_mtf(["AAPL", "MSFT", "NVDA"])
-print(portfolio_metrics(rows))
-```
+| File | Role |
+|------|------|
+| `nse_fno.py` | Live NSE F&O underlying list (+ cache) |
+| `datafeed.py` | Yahoo fetch + closed-bar helper |
+| `alphatrend.py` | Indicator |
+| `mtf.py` | Multi-timeframe scoring |
+| `scanner.py` | CLI |
+| `dashboard.py` | Streamlit desk |
 
 ## Tests
 
 ```bash
 python test_alphatrend.py
 python test_mtf.py
+python test_closed_bars.py
 ```
-
-## Files
-
-- `alphatrend.py` — indicator
-- `datafeed.py` — yfinance helpers
-- `mtf.py` — multi-timeframe scoring
-- `scanner.py` — CLI (single + MTF)
-- `dashboard.py` — Streamlit desk
-- `symbols.txt` — sample watchlist

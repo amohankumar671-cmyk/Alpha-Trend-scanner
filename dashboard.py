@@ -22,6 +22,7 @@ from mtf import (
     scan_universe_mtf,
     summaries_to_frame,
 )
+from nse_fno import fno_yahoo_tickers
 
 st.set_page_config(
     page_title="AlphaTrend MTF Desk",
@@ -329,11 +330,27 @@ def build_price_chart(summary: dict, focus_tf: str) -> go.Figure:
 
 def sidebar_controls():
     st.sidebar.markdown("### Scan settings")
+    universe = st.sidebar.radio(
+        "Universe",
+        options=["NSE F&O (all)", "Custom symbols"],
+        index=0,
+        help="Moto: validate AlphaTrend across every NSE F&O equity",
+    )
     symbols_raw = st.sidebar.text_area(
         "Symbols",
         value=",".join(DEFAULT_SYMBOLS),
         height=100,
-        help="Comma-separated tickers",
+        help="Comma-separated tickers (used when Custom symbols is selected)",
+        disabled=universe.startswith("NSE"),
+    )
+    refresh_fno = st.sidebar.checkbox("Refresh F&O list from NSE", value=False)
+    limit = st.sidebar.number_input(
+        "Limit (0 = all)",
+        min_value=0,
+        max_value=500,
+        value=0,
+        step=10,
+        help="Cap symbol count for faster smoke runs",
     )
     default_tf = list(DEFAULT_MTF_FRAMES)
     timeframes = st.sidebar.multiselect(
@@ -345,17 +362,36 @@ def sidebar_controls():
     ap = st.sidebar.slider("Common period (AP)", 5, 50, 14, 1)
     lookback = st.sidebar.slider("Signal lookback (bars)", 1, 20, 3, 1)
     no_volume = st.sidebar.checkbox("No volume (RSI gate)", value=False)
+    include_forming = st.sidebar.checkbox(
+        "Include forming bar (live/unconfirmed)",
+        value=False,
+        help="Default off: 5m/15m/1h only use fully closed candles",
+    )
     workers = st.sidebar.slider("Workers", 1, 8, 4)
     run = st.sidebar.button("Run MTF scan", type="primary", use_container_width=True)
+
+    if universe.startswith("NSE"):
+        try:
+            symbols = fno_yahoo_tickers(refresh=refresh_fno)
+            if limit:
+                symbols = symbols[: int(limit)]
+        except Exception as exc:  # noqa: BLE001
+            st.sidebar.error(f"F&O list failed: {exc}")
+            symbols = parse_symbols(symbols_raw.replace("\n", ","), None)
+    else:
+        symbols = parse_symbols(symbols_raw.replace("\n", ","), None)
+
     return {
-        "symbols": parse_symbols(symbols_raw.replace("\n", ","), None),
+        "symbols": symbols,
         "timeframes": timeframes or default_tf,
         "multiplier": multiplier,
         "ap": ap,
         "lookback": lookback,
         "no_volume": no_volume,
+        "include_forming": include_forming,
         "workers": workers,
         "run": run,
+        "universe": universe,
     }
 
 
@@ -364,7 +400,7 @@ def main() -> None:
         """
 <div class="brand-wrap">
   <p class="brand">AlphaTrend</p>
-  <p class="brand-sub">Multi-timeframe confluence desk — score, alignment, and active BUY/SELL counts across your watchlist.</p>
+  <p class="brand-sub">NSE F&amp;O signal desk — validate AlphaTrend on closed 5m/15m/1h candles across the full derivatives universe.</p>
 </div>
 """,
         unsafe_allow_html=True,
@@ -376,7 +412,7 @@ def main() -> None:
         st.session_state.cfg = None
 
     if cfg["run"]:
-        with st.spinner("Scanning timeframes…"):
+        with st.spinner(f"Scanning {len(cfg['symbols'])} symbols × {len(cfg['timeframes'])} frames…"):
             summaries = scan_universe_mtf(
                 cfg["symbols"],
                 timeframes=cfg["timeframes"],
@@ -385,6 +421,7 @@ def main() -> None:
                 no_volume=cfg["no_volume"],
                 lookback=cfg["lookback"],
                 workers=cfg["workers"],
+                include_forming=cfg["include_forming"],
             )
             # Re-fetch one symbol detail with series kept for chart (already in _raw_rows)
             st.session_state.summaries = summaries
@@ -402,8 +439,11 @@ def main() -> None:
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     st.caption(
-        f"Updated {now} · coeff={active_cfg['multiplier']} · AP={active_cfg['ap']} · "
-        f"lookback={active_cfg['lookback']} · gate={'RSI' if active_cfg['no_volume'] else 'MFI'} · "
+        f"Updated {now} · universe={active_cfg.get('universe', 'custom')} · "
+        f"symbols={len(active_cfg['symbols'])} · coeff={active_cfg['multiplier']} · "
+        f"AP={active_cfg['ap']} · lookback={active_cfg['lookback']} · "
+        f"gate={'RSI' if active_cfg['no_volume'] else 'MFI'} · "
+        f"bars={'forming' if active_cfg.get('include_forming') else 'closed'} · "
         f"frames={', '.join(frames)}"
     )
 
@@ -469,6 +509,7 @@ def main() -> None:
             no_volume=active_cfg["no_volume"],
             lookback=active_cfg["lookback"],
             workers=active_cfg["workers"],
+            include_forming=active_cfg.get("include_forming", False),
         )
 
     m1, m2, m3, m4, m5 = st.columns(5)

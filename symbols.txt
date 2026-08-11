@@ -1,13 +1,11 @@
-# One ticker per line. Lines starting with # are ignored.
-AAPL
-MSFT
-NVDA
-AMZN
-META
-GOOGL
-TSLA
-AMD
-NFLX
-SPY
-QQQ
-IWM
+# Sample NSE names (scanner auto-appends .NS). Prefer: python scanner.py --fno
+RELIANCE
+TCS
+HDFCBANK
+INFY
+ICICIBANK
+SBIN
+BHARTIARTL
+ITC
+LT
+KOTAKBANK

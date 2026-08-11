@@ -1,0 +1,1254 @@
+{
+  "updated_at": "2026-08-11T19:56:55Z",
+  "count": 208,
+  "symbols": [
+    {
+      "symbol": "360ONE",
+      "underlying": "360 ONE WAM LIMITED",
+      "yf_symbol": "360ONE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ABB",
+      "underlying": "ABB India Limited",
+      "yf_symbol": "ABB.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "APLAPOLLO",
+      "underlying": "APL Apollo Tubes Limited",
+      "yf_symbol": "APLAPOLLO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "AUBANK",
+      "underlying": "AU Small Finance Bank Limited",
+      "yf_symbol": "AUBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ADANIENSOL",
+      "underlying": "Adani Energy Solutions Limited",
+      "yf_symbol": "ADANIENSOL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ADANIENT",
+      "underlying": "Adani Enterprises Limited",
+      "yf_symbol": "ADANIENT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ADANIGREEN",
+      "underlying": "Adani Green Energy Limited",
+      "yf_symbol": "ADANIGREEN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ADANIPORTS",
+      "underlying": "Adani Ports and Special Economic Zone Limited",
+      "yf_symbol": "ADANIPORTS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ADANIPOWER",
+      "underlying": "Adani Power Limited",
+      "yf_symbol": "ADANIPOWER.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ABCAPITAL",
+      "underlying": "Aditya Birla Capital Limited",
+      "yf_symbol": "ABCAPITAL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ALKEM",
+      "underlying": "Alkem Laboratories Limited",
+      "yf_symbol": "ALKEM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "AMBER",
+      "underlying": "Amber Enterprises India Limited",
+      "yf_symbol": "AMBER.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "AMBUJACEM",
+      "underlying": "Ambuja Cements Limited",
+      "yf_symbol": "AMBUJACEM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ANGELONE",
+      "underlying": "Angel One Limited",
+      "yf_symbol": "ANGELONE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "APOLLOHOSP",
+      "underlying": "Apollo Hospitals Enterprise Limited",
+      "yf_symbol": "APOLLOHOSP.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ASHOKLEY",
+      "underlying": "Ashok Leyland Limited",
+      "yf_symbol": "ASHOKLEY.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ASIANPAINT",
+      "underlying": "Asian Paints Limited",
+      "yf_symbol": "ASIANPAINT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ASTRAL",
+      "underlying": "Astral Limited",
+      "yf_symbol": "ASTRAL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "AUROPHARMA",
+      "underlying": "Aurobindo Pharma Limited",
+      "yf_symbol": "AUROPHARMA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DMART",
+      "underlying": "Avenue Supermarts Limited",
+      "yf_symbol": "DMART.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "AXISBANK",
+      "underlying": "Axis Bank Limited",
+      "yf_symbol": "AXISBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BSE",
+      "underlying": "BSE Limited",
+      "yf_symbol": "BSE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BAJAJ-AUTO",
+      "underlying": "Bajaj Auto Limited",
+      "yf_symbol": "BAJAJ-AUTO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BAJFINANCE",
+      "underlying": "Bajaj Finance Limited",
+      "yf_symbol": "BAJFINANCE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BAJAJFINSV",
+      "underlying": "Bajaj Finserv Limited",
+      "yf_symbol": "BAJAJFINSV.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BAJAJHLDNG",
+      "underlying": "Bajaj Holdings & Investment Limited",
+      "yf_symbol": "BAJAJHLDNG.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BANDHANBNK",
+      "underlying": "Bandhan Bank Limited",
+      "yf_symbol": "BANDHANBNK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BANKBARODA",
+      "underlying": "Bank of Baroda",
+      "yf_symbol": "BANKBARODA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BANKINDIA",
+      "underlying": "Bank of India",
+      "yf_symbol": "BANKINDIA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BDL",
+      "underlying": "Bharat Dynamics Limited",
+      "yf_symbol": "BDL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BEL",
+      "underlying": "Bharat Electronics Limited",
+      "yf_symbol": "BEL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BHARATFORG",
+      "underlying": "Bharat Forge Limited",
+      "yf_symbol": "BHARATFORG.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BHEL",
+      "underlying": "Bharat Heavy Electricals Limited",
+      "yf_symbol": "BHEL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BPCL",
+      "underlying": "Bharat Petroleum Corporation Limited",
+      "yf_symbol": "BPCL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BHARTIARTL",
+      "underlying": "Bharti Airtel Limited",
+      "yf_symbol": "BHARTIARTL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BIOCON",
+      "underlying": "Biocon Limited",
+      "yf_symbol": "BIOCON.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BLUESTARCO",
+      "underlying": "Blue Star Limited",
+      "yf_symbol": "BLUESTARCO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BOSCHLTD",
+      "underlying": "Bosch Limited",
+      "yf_symbol": "BOSCHLTD.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "BRITANNIA",
+      "underlying": "Britannia Industries Limited",
+      "yf_symbol": "BRITANNIA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CGPOWER",
+      "underlying": "CG Power and Industrial Solutions Limited",
+      "yf_symbol": "CGPOWER.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CANBK",
+      "underlying": "Canara Bank",
+      "yf_symbol": "CANBK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CDSL",
+      "underlying": "Central Depository Services (India) Limited",
+      "yf_symbol": "CDSL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CHOLAFIN",
+      "underlying": "Cholamandalam Investment and Finance Company Limited",
+      "yf_symbol": "CHOLAFIN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CIPLA",
+      "underlying": "Cipla Limited",
+      "yf_symbol": "CIPLA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "COALINDIA",
+      "underlying": "Coal India Limited",
+      "yf_symbol": "COALINDIA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "COCHINSHIP",
+      "underlying": "Cochin Shipyard Limited",
+      "yf_symbol": "COCHINSHIP.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "COFORGE",
+      "underlying": "Coforge Limited",
+      "yf_symbol": "COFORGE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "COLPAL",
+      "underlying": "Colgate Palmolive (India) Limited",
+      "yf_symbol": "COLPAL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CAMS",
+      "underlying": "Computer Age Management Services Limited",
+      "yf_symbol": "CAMS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CONCOR",
+      "underlying": "Container Corporation of India Limited",
+      "yf_symbol": "CONCOR.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CROMPTON",
+      "underlying": "Crompton Greaves Consumer Electricals Limited",
+      "yf_symbol": "CROMPTON.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "CUMMINSIND",
+      "underlying": "Cummins India Limited",
+      "yf_symbol": "CUMMINSIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DLF",
+      "underlying": "DLF Limited",
+      "yf_symbol": "DLF.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DABUR",
+      "underlying": "Dabur India Limited",
+      "yf_symbol": "DABUR.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DALBHARAT",
+      "underlying": "Dalmia Bharat Limited",
+      "yf_symbol": "DALBHARAT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DELHIVERY",
+      "underlying": "Delhivery Limited",
+      "yf_symbol": "DELHIVERY.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DIVISLAB",
+      "underlying": "Divi's Laboratories Limited",
+      "yf_symbol": "DIVISLAB.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DIXON",
+      "underlying": "Dixon Technologies (India) Limited",
+      "yf_symbol": "DIXON.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "DRREDDY",
+      "underlying": "Dr. Reddy's Laboratories Limited",
+      "yf_symbol": "DRREDDY.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ETERNAL",
+      "underlying": "ETERNAL LIMITED",
+      "yf_symbol": "ETERNAL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "EICHERMOT",
+      "underlying": "Eicher Motors Limited",
+      "yf_symbol": "EICHERMOT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "FORCEMOT",
+      "underlying": "FORCE MOTORS LTD",
+      "yf_symbol": "FORCEMOT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NYKAA",
+      "underlying": "FSN E-Commerce Ventures Limited",
+      "yf_symbol": "NYKAA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "FORTIS",
+      "underlying": "Fortis Healthcare Limited",
+      "yf_symbol": "FORTIS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GAIL",
+      "underlying": "GAIL (India) Limited",
+      "yf_symbol": "GAIL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GVT&D",
+      "underlying": "GE Vernova T&D India Limited",
+      "yf_symbol": "GVT&D.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GMRAIRPORT",
+      "underlying": "GMR AIRPORTS LIMITED",
+      "yf_symbol": "GMRAIRPORT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GLENMARK",
+      "underlying": "Glenmark Pharmaceuticals Limited",
+      "yf_symbol": "GLENMARK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GODFRYPHLP",
+      "underlying": "Godfrey Phillips India Limited",
+      "yf_symbol": "GODFRYPHLP.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GODREJCP",
+      "underlying": "Godrej Consumer Products Limited",
+      "yf_symbol": "GODREJCP.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GODREJPROP",
+      "underlying": "Godrej Properties Limited",
+      "yf_symbol": "GODREJPROP.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "GRASIM",
+      "underlying": "Grasim Industries Limited",
+      "yf_symbol": "GRASIM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HCLTECH",
+      "underlying": "HCL Technologies Limited",
+      "yf_symbol": "HCLTECH.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HDFCAMC",
+      "underlying": "HDFC Asset Management Company Limited",
+      "yf_symbol": "HDFCAMC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HDFCBANK",
+      "underlying": "HDFC Bank Limited",
+      "yf_symbol": "HDFCBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HDFCLIFE",
+      "underlying": "HDFC Life Insurance Company Limited",
+      "yf_symbol": "HDFCLIFE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HAVELLS",
+      "underlying": "Havells India Limited",
+      "yf_symbol": "HAVELLS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HEROMOTOCO",
+      "underlying": "Hero MotoCorp Limited",
+      "yf_symbol": "HEROMOTOCO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HINDALCO",
+      "underlying": "Hindalco Industries Limited",
+      "yf_symbol": "HINDALCO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HAL",
+      "underlying": "Hindustan Aeronautics Limited",
+      "yf_symbol": "HAL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HINDPETRO",
+      "underlying": "Hindustan Petroleum Corporation Limited",
+      "yf_symbol": "HINDPETRO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HINDUNILVR",
+      "underlying": "Hindustan Unilever Limited",
+      "yf_symbol": "HINDUNILVR.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HINDZINC",
+      "underlying": "Hindustan Zinc Limited",
+      "yf_symbol": "HINDZINC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "POWERINDIA",
+      "underlying": "Hitachi Energy India Limited",
+      "yf_symbol": "POWERINDIA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "HYUNDAI",
+      "underlying": "Hyundai Motor India Limited",
+      "yf_symbol": "HYUNDAI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ICICIBANK",
+      "underlying": "ICICI Bank Limited",
+      "yf_symbol": "ICICIBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ICICIGI",
+      "underlying": "ICICI Lombard General Insurance Company Limited",
+      "yf_symbol": "ICICIGI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ICICIPRULI",
+      "underlying": "ICICI Prudential Life Insurance Company Limited",
+      "yf_symbol": "ICICIPRULI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "IDFCFIRSTB",
+      "underlying": "IDFC First Bank Limited",
+      "yf_symbol": "IDFCFIRSTB.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ITC",
+      "underlying": "ITC Limited",
+      "yf_symbol": "ITC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "INDIANB",
+      "underlying": "Indian Bank",
+      "yf_symbol": "INDIANB.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "IEX",
+      "underlying": "Indian Energy Exchange Limited",
+      "yf_symbol": "IEX.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "IOC",
+      "underlying": "Indian Oil Corporation Limited",
+      "yf_symbol": "IOC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "IRFC",
+      "underlying": "Indian Railway Finance Corporation Limited",
+      "yf_symbol": "IRFC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "IREDA",
+      "underlying": "Indian Renewable Energy Development Agency Limited",
+      "yf_symbol": "IREDA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "INDUSTOWER",
+      "underlying": "Indus Towers Limited",
+      "yf_symbol": "INDUSTOWER.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "INDUSINDBK",
+      "underlying": "IndusInd Bank Limited",
+      "yf_symbol": "INDUSINDBK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NAUKRI",
+      "underlying": "Info Edge (India) Limited",
+      "yf_symbol": "NAUKRI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "INFY",
+      "underlying": "Infosys Limited",
+      "yf_symbol": "INFY.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "INOXWIND",
+      "underlying": "Inox Wind Limited",
+      "yf_symbol": "INOXWIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "INDIGO",
+      "underlying": "InterGlobe Aviation Limited",
+      "yf_symbol": "INDIGO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "JINDALSTEL",
+      "underlying": "JINDAL STEEL LIMITED",
+      "yf_symbol": "JINDALSTEL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "JSWENERGY",
+      "underlying": "JSW Energy Limited",
+      "yf_symbol": "JSWENERGY.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "JSWSTEEL",
+      "underlying": "JSW Steel Limited",
+      "yf_symbol": "JSWSTEEL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "JIOFIN",
+      "underlying": "Jio Financial Services Limited",
+      "yf_symbol": "JIOFIN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "JUBLFOOD",
+      "underlying": "Jubilant Foodworks Limited",
+      "yf_symbol": "JUBLFOOD.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "KEI",
+      "underlying": "KEI Industries Limited",
+      "yf_symbol": "KEI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "KPITTECH",
+      "underlying": "KPIT Technologies Limited",
+      "yf_symbol": "KPITTECH.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "KALYANKJIL",
+      "underlying": "Kalyan Jewellers India Limited",
+      "yf_symbol": "KALYANKJIL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "KAYNES",
+      "underlying": "Kaynes Technology India Limited",
+      "yf_symbol": "KAYNES.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "KFINTECH",
+      "underlying": "Kfin Technologies Limited",
+      "yf_symbol": "KFINTECH.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "underlying": "Kotak Mahindra Bank Limited",
+      "yf_symbol": "KOTAKBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LTF",
+      "underlying": "L&T Finance Limited",
+      "yf_symbol": "LTF.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LICHSGFIN",
+      "underlying": "LIC Housing Finance Limited",
+      "yf_symbol": "LICHSGFIN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LTM",
+      "underlying": "LTM Limited",
+      "yf_symbol": "LTM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LT",
+      "underlying": "Larsen & Toubro Limited",
+      "yf_symbol": "LT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LAURUSLABS",
+      "underlying": "Laurus Labs Limited",
+      "yf_symbol": "LAURUSLABS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LICI",
+      "underlying": "Life Insurance Corporation Of India",
+      "yf_symbol": "LICI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LODHA",
+      "underlying": "Lodha Developers Limited",
+      "yf_symbol": "LODHA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "LUPIN",
+      "underlying": "Lupin Limited",
+      "yf_symbol": "LUPIN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "M&M",
+      "underlying": "Mahindra & Mahindra Limited",
+      "yf_symbol": "M&M.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MANAPPURAM",
+      "underlying": "Manappuram Finance Limited",
+      "yf_symbol": "MANAPPURAM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MANKIND",
+      "underlying": "Mankind Pharma Limited",
+      "yf_symbol": "MANKIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MARICO",
+      "underlying": "Marico Limited",
+      "yf_symbol": "MARICO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MARUTI",
+      "underlying": "Maruti Suzuki India Limited",
+      "yf_symbol": "MARUTI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MFSL",
+      "underlying": "Max Financial Services Limited",
+      "yf_symbol": "MFSL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "underlying": "Max Healthcare Institute Limited",
+      "yf_symbol": "MAXHEALTH.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MAZDOCK",
+      "underlying": "Mazagon Dock Shipbuilders Limited",
+      "yf_symbol": "MAZDOCK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MOTILALOFS",
+      "underlying": "Motilal Oswal Financial Services Limited",
+      "yf_symbol": "MOTILALOFS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MPHASIS",
+      "underlying": "MphasiS Limited",
+      "yf_symbol": "MPHASIS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MCX",
+      "underlying": "Multi Commodity Exchange of India Limited",
+      "yf_symbol": "MCX.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MUTHOOTFIN",
+      "underlying": "Muthoot Finance Limited",
+      "yf_symbol": "MUTHOOTFIN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NBCC",
+      "underlying": "NBCC (India) Limited",
+      "yf_symbol": "NBCC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NHPC",
+      "underlying": "NHPC Limited",
+      "yf_symbol": "NHPC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NMDC",
+      "underlying": "NMDC Limited",
+      "yf_symbol": "NMDC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NTPC",
+      "underlying": "NTPC Limited",
+      "yf_symbol": "NTPC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NATIONALUM",
+      "underlying": "National Aluminium Company Limited",
+      "yf_symbol": "NATIONALUM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NESTLEIND",
+      "underlying": "Nestle India Limited",
+      "yf_symbol": "NESTLEIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "NAM-INDIA",
+      "underlying": "Nippon Life India Asset Management Limited",
+      "yf_symbol": "NAM-INDIA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "OBEROIRLTY",
+      "underlying": "Oberoi Realty Limited",
+      "yf_symbol": "OBEROIRLTY.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ONGC",
+      "underlying": "Oil & Natural Gas Corporation Limited",
+      "yf_symbol": "ONGC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "OIL",
+      "underlying": "Oil India Limited",
+      "yf_symbol": "OIL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PAYTM",
+      "underlying": "One 97 Communications Limited",
+      "yf_symbol": "PAYTM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "OFSS",
+      "underlying": "Oracle Financial Services Software Limited",
+      "yf_symbol": "OFSS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "POLICYBZR",
+      "underlying": "PB Fintech Limited",
+      "yf_symbol": "POLICYBZR.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PGEL",
+      "underlying": "PG Electroplast Limited",
+      "yf_symbol": "PGEL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PIIND",
+      "underlying": "PI Industries Limited",
+      "yf_symbol": "PIIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PNBHOUSING",
+      "underlying": "PNB Housing Finance Limited",
+      "yf_symbol": "PNBHOUSING.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PAGEIND",
+      "underlying": "Page Industries Limited",
+      "yf_symbol": "PAGEIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PATANJALI",
+      "underlying": "Patanjali Foods Limited",
+      "yf_symbol": "PATANJALI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PERSISTENT",
+      "underlying": "Persistent Systems Limited",
+      "yf_symbol": "PERSISTENT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PETRONET",
+      "underlying": "Petronet LNG Limited",
+      "yf_symbol": "PETRONET.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PIDILITIND",
+      "underlying": "Pidilite Industries Limited",
+      "yf_symbol": "PIDILITIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "POLYCAB",
+      "underlying": "Polycab India Limited",
+      "yf_symbol": "POLYCAB.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PFC",
+      "underlying": "Power Finance Corporation Limited",
+      "yf_symbol": "PFC.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "POWERGRID",
+      "underlying": "Power Grid Corporation of India Limited",
+      "yf_symbol": "POWERGRID.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PREMIERENE",
+      "underlying": "Premier Energies Limited",
+      "yf_symbol": "PREMIERENE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PRESTIGE",
+      "underlying": "Prestige Estates Projects Limited",
+      "yf_symbol": "PRESTIGE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PNB",
+      "underlying": "Punjab National Bank",
+      "yf_symbol": "PNB.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "RBLBANK",
+      "underlying": "RBL Bank Limited",
+      "yf_symbol": "RBLBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "RECLTD",
+      "underlying": "REC Limited",
+      "yf_symbol": "RECLTD.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "RADICO",
+      "underlying": "Radico Khaitan Limited",
+      "yf_symbol": "RADICO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "RVNL",
+      "underlying": "Rail Vikas Nigam Limited",
+      "yf_symbol": "RVNL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "RELIANCE",
+      "underlying": "Reliance Industries Limited",
+      "yf_symbol": "RELIANCE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SBICARD",
+      "underlying": "SBI Cards and Payment Services Limited",
+      "yf_symbol": "SBICARD.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SBILIFE",
+      "underlying": "SBI Life Insurance Company Limited",
+      "yf_symbol": "SBILIFE.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SHREECEM",
+      "underlying": "SHREE CEMENT LIMITED",
+      "yf_symbol": "SHREECEM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SRF",
+      "underlying": "SRF Limited",
+      "yf_symbol": "SRF.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "MOTHERSON",
+      "underlying": "Samvardhana Motherson International Limited",
+      "yf_symbol": "MOTHERSON.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SHRIRAMFIN",
+      "underlying": "Shriram Finance Limited",
+      "yf_symbol": "SHRIRAMFIN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SIEMENS",
+      "underlying": "Siemens Limited",
+      "yf_symbol": "SIEMENS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SOLARINDS",
+      "underlying": "Solar Industries India Limited",
+      "yf_symbol": "SOLARINDS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SONACOMS",
+      "underlying": "Sona BLW Precision Forgings Limited",
+      "yf_symbol": "SONACOMS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SBIN",
+      "underlying": "State Bank of India",
+      "yf_symbol": "SBIN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SAIL",
+      "underlying": "Steel Authority of India Limited",
+      "yf_symbol": "SAIL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "underlying": "Sun Pharmaceutical Industries Limited",
+      "yf_symbol": "SUNPHARMA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SUPREMEIND",
+      "underlying": "Supreme Industries Limited",
+      "yf_symbol": "SUPREMEIND.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SUZLON",
+      "underlying": "Suzlon Energy Limited",
+      "yf_symbol": "SUZLON.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "SWIGGY",
+      "underlying": "Swiggy Limited",
+      "yf_symbol": "SWIGGY.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TATACONSUM",
+      "underlying": "TATA CONSUMER PRODUCTS LIMITED",
+      "yf_symbol": "TATACONSUM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TVSMOTOR",
+      "underlying": "TVS Motor Company Limited",
+      "yf_symbol": "TVSMOTOR.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TCS",
+      "underlying": "Tata Consultancy Services Limited",
+      "yf_symbol": "TCS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TATAELXSI",
+      "underlying": "Tata Elxsi Limited",
+      "yf_symbol": "TATAELXSI.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TMPV",
+      "underlying": "Tata Motors Passenger Vehicles Limited",
+      "yf_symbol": "TMPV.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TATAPOWER",
+      "underlying": "Tata Power Company Limited",
+      "yf_symbol": "TATAPOWER.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TATASTEEL",
+      "underlying": "Tata Steel Limited",
+      "yf_symbol": "TATASTEEL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TECHM",
+      "underlying": "Tech Mahindra Limited",
+      "yf_symbol": "TECHM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "FEDERALBNK",
+      "underlying": "The Federal Bank  Limited",
+      "yf_symbol": "FEDERALBNK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "INDHOTEL",
+      "underlying": "The Indian Hotels Company Limited",
+      "yf_symbol": "INDHOTEL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "PHOENIXLTD",
+      "underlying": "The Phoenix Mills Limited",
+      "yf_symbol": "PHOENIXLTD.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TITAN",
+      "underlying": "Titan Company Limited",
+      "yf_symbol": "TITAN.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TORNTPHARM",
+      "underlying": "Torrent Pharmaceuticals Limited",
+      "yf_symbol": "TORNTPHARM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TRENT",
+      "underlying": "Trent Limited",
+      "yf_symbol": "TRENT.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "TIINDIA",
+      "underlying": "Tube Investments of India Limited",
+      "yf_symbol": "TIINDIA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "UNOMINDA",
+      "underlying": "UNO Minda Limited",
+      "yf_symbol": "UNOMINDA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "UPL",
+      "underlying": "UPL Limited",
+      "yf_symbol": "UPL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ULTRACEMCO",
+      "underlying": "UltraTech Cement Limited",
+      "yf_symbol": "ULTRACEMCO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "UNIONBANK",
+      "underlying": "Union Bank of India",
+      "yf_symbol": "UNIONBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "UNITDSPR",
+      "underlying": "United Spirits Limited",
+      "yf_symbol": "UNITDSPR.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "VBL",
+      "underlying": "Varun Beverages Limited",
+      "yf_symbol": "VBL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "VEDL",
+      "underlying": "Vedanta Limited",
+      "yf_symbol": "VEDL.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "VMM",
+      "underlying": "Vishal Mega Mart Limited",
+      "yf_symbol": "VMM.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "IDEA",
+      "underlying": "Vodafone Idea Limited",
+      "yf_symbol": "IDEA.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "VOLTAS",
+      "underlying": "Voltas Limited",
+      "yf_symbol": "VOLTAS.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "WAAREEENER",
+      "underlying": "Waaree Energies Limited",
+      "yf_symbol": "WAAREEENER.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "WIPRO",
+      "underlying": "Wipro Limited",
+      "yf_symbol": "WIPRO.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "YESBANK",
+      "underlying": "Yes Bank Limited",
+      "yf_symbol": "YESBANK.NS",
+      "kind": "equity"
+    },
+    {
+      "symbol": "ZYDUSLIFE",
+      "underlying": "Zydus Lifesciences Limited",
+      "yf_symbol": "ZYDUSLIFE.NS",
+      "kind": "equity"
+    }
+  ]
+}
