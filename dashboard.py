@@ -23,6 +23,7 @@ from mtf import (
     summaries_to_frame,
 )
 from nse_fno import fno_yahoo_tickers
+from eod_report import save_mtf_eod
 
 st.set_page_config(
     page_title="AlphaTrend MTF Desk",
@@ -539,7 +540,18 @@ def main() -> None:
     st.dataframe(pd.DataFrame(tf_rows), use_container_width=True, hide_index=True)
 
     csv = table.to_csv(index=False).encode("utf-8")
-    st.download_button("Download MTF CSV", csv, file_name="alphatrend_mtf.csv", mime="text/csv")
+    c_dl, c_eod = st.columns(2)
+    with c_dl:
+        st.download_button("Download MTF CSV", csv, file_name="alphatrend_mtf.csv", mime="text/csv")
+    with c_eod:
+        if st.button("Save EOD report to reports/", use_container_width=True):
+            paths = save_mtf_eod(
+                summaries,
+                frames,
+                lookback=active_cfg["lookback"],
+                base_dir="reports",
+            )
+            st.success("Saved:\n" + "\n".join(f"{k}: {v}" for k, v in paths.items()))
 
 
 if __name__ == "__main__":

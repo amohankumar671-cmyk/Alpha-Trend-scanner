@@ -1,74 +1,120 @@
 # AlphaTrend Scanner (NSE F&O)
 
-Validate AlphaTrend BUY/SELL signals across **all NSE F&O equities**, using **closed candles only** on 5m / 15m / 1h so signals do not flicker while a bar is still forming.
+Validate AlphaTrend BUY/SELL signals across **all NSE F&O equities**, using **closed candles only** on 5m / 15m / 1h.
 
-## Install
+## 1) Install dependencies (Windows)
 
-```bash
+Open **Command Prompt** or **PowerShell** inside the project folder  
+(`Alpha-Trend-scanner-main`):
+
+```bat
+cd "C:\Users\YOUR_USER\My project\Alpha-Trend-scanner-main"
+
+python -m venv .venv
+.venv\Scripts\activate
+
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## NSE F&O scan (main use)
+### What gets installed
 
-```bash
-# List the F&O universe (cached under nse_fno_symbols.json)
-python scanner.py --list-fno --refresh-fno
+| Package | Why |
+|---------|-----|
+| `pandas` | tables / CSV reports |
+| `numpy` | indicator math |
+| `yfinance` | NSE price candles (`SYMBOL.NS`) |
+| `requests` | live NSE F&O symbol list |
+| `streamlit` | web dashboard |
+| `plotly` | dashboard charts |
 
-# Validate signals on all F&O stocks, 15m closed bars
-python scanner.py --fno -i 15m -l 3 --signal-only --csv fno_signals.csv
+Python **3.10+** recommended.
 
-# Multi-timeframe confluence across the F&O book
-python scanner.py --fno --mtf --mtf-frames 15m,1h,4h,1d -l 3 --csv fno_mtf.csv
+## 2) How to run
 
-# Smoke test first 20 names
-python scanner.py --fno --limit 20 -i 15m -l 3
+### A) Full NSE F&O scan + **EOD report** (recommended)
+
+```bat
+python scanner.py --fno -i 15m -l 3 --signal-only --eod
 ```
 
-### Closed bars vs forming bars
+Creates dated folder:
 
-| Mode | Flag | Behavior |
-|------|------|----------|
-| **Closed (default)** | _(none)_ | 5m/15m/1h/4h evaluate only fully finished candles — no early flickers |
-| **Live / unconfirmed** | `--include-forming` | One-line switch back to the in-progress bar read |
+```text
+reports\YYYY-MM-DD\
+  eod_all_15m.csv
+  eod_signals_15m.csv
+  eod_summary_15m.txt
+```
 
-While history is still warming up you may see `BUILDING` instead of an error:
+### B) Multi-timeframe F&O scan + EOD report
 
-`Building history: need 19 closed bars, have 12 (in-progress bar excluded)`
+```bat
+python scanner.py --fno --mtf --mtf-frames 15m,1h,4h,1d -l 3 --eod
+```
 
-That is expected near session open / for thin names; counts grow by one when each bar closes.
+Writes:
 
-## Dashboard
+```text
+reports\YYYY-MM-DD\
+  eod_mtf_all.csv
+  eod_mtf_signals.csv
+  eod_mtf_summary.txt
+```
 
-```bash
+### C) Dashboard (browser UI)
+
+```bat
 streamlit run dashboard.py
 ```
 
-Pick **NSE F&O (all)** in the sidebar. Leave “Include forming bar” unchecked for confirmed signals.
+Then open the local URL Streamlit prints (usually `http://localhost:8501`).  
+Choose **NSE F&O (all)** in the sidebar.
 
-## How AlphaTrend works
+### D) Quick smoke test (first 20 names)
 
-| Step | Formula |
-|------|---------|
-| ATR | `SMA(TrueRange, AP)` |
-| Trails | `upT = low − ATR×coeff`, `downT = high + ATR×coeff` |
-| Gate | `MFI ≥ 50` (or RSI if `--no-volume`) |
-| BUY / SELL | Cross of `AT` vs `AT[2]` with alternating filter |
+```bat
+python scanner.py --fno --limit 20 -i 15m -l 3 --eod
+```
 
-## Files
+### E) List F&O universe
 
-| File | Role |
+```bat
+python scanner.py --list-fno --refresh-fno
+```
+
+## 3) EOD report — yes, this is included
+
+Use **`--eod`**. Signals are saved automatically under `reports\YYYY-MM-DD\`.
+
+| File | Contents |
+|------|----------|
+| `eod_signals_*.csv` | Only BUY / SELL rows |
+| `eod_all_*.csv` | Full scan (including NONE / BUILDING) |
+| `eod_summary_*.txt` | Human-readable day summary |
+
+Optional custom folder:
+
+```bat
+python scanner.py --fno -i 15m --eod --reports-dir D:\AT_Reports
+```
+
+You can still use `--csv myfile.csv` for a one-off file in addition to `--eod`.
+
+## Closed bars
+
+| Mode | Flag |
 |------|------|
-| `nse_fno.py` | Live NSE F&O underlying list (+ cache) |
-| `datafeed.py` | Yahoo fetch + closed-bar helper |
-| `alphatrend.py` | Indicator |
-| `mtf.py` | Multi-timeframe scoring |
-| `scanner.py` | CLI |
-| `dashboard.py` | Streamlit desk |
+| Closed candles only (default) | _(none)_ |
+| Live / unconfirmed forming bar | `--include-forming` |
+
+`BUILDING history…` means not enough closed bars yet — wait for candles to finish.
 
 ## Tests
 
-```bash
+```bat
 python test_alphatrend.py
 python test_mtf.py
 python test_closed_bars.py
+python test_eod_report.py
 ```

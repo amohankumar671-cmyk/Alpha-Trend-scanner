@@ -1,1 +1,7 @@
 __pycache__/
+reports/
+*.csv
+!nse_fno_symbols.json
+.venv/
+venv/
+.env

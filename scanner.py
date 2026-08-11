@@ -27,6 +27,7 @@ from datafeed import (
 )
 from mtf import portfolio_metrics, scan_universe_mtf, summaries_to_frame
 from nse_fno import fno_yahoo_tickers, get_fno_symbols
+from eod_report import save_mtf_eod, save_single_tf_eod
 
 
 def scan_symbol(
@@ -222,6 +223,17 @@ def run_single_tf(args, symbols: list[str]) -> int:
         pd.DataFrame(results).to_csv(args.csv, index=False)
         print(f"Wrote {args.csv}")
 
+    if args.eod:
+        paths = save_single_tf_eod(
+            results,
+            interval=args.interval,
+            lookback=args.lookback,
+            base_dir=args.reports_dir,
+        )
+        print("EOD report saved:")
+        for kind, path in paths.items():
+            print(f"  {kind}: {path}")
+
     return 0 if errors == 0 else 1
 
 
@@ -281,6 +293,17 @@ def run_mtf(args, symbols: list[str]) -> int:
         summaries_to_frame(summaries, frames).to_csv(args.csv, index=False)
         print(f"Wrote {args.csv}")
 
+    if args.eod:
+        paths = save_mtf_eod(
+            summaries,
+            frames,
+            lookback=args.lookback,
+            base_dir=args.reports_dir,
+        )
+        print("EOD report saved:")
+        for kind, path in paths.items():
+            print(f"  {kind}: {path}")
+
     return 0 if errors == 0 else 1
 
 
@@ -329,6 +352,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--signal-only", action="store_true", help="Only print active signal rows")
     parser.add_argument("--workers", type=int, default=6, help="Parallel workers")
     parser.add_argument("--csv", help="Optional CSV output path")
+    parser.add_argument(
+        "--eod",
+        action="store_true",
+        help="Save EOD report under reports/YYYY-MM-DD/ (CSV + summary txt)",
+    )
+    parser.add_argument(
+        "--reports-dir",
+        default="reports",
+        help="Base folder for --eod reports (default: reports)",
+    )
     parser.add_argument(
         "--include-forming",
         action="store_true",
