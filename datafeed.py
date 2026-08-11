@@ -21,12 +21,13 @@ DEFAULT_SYMBOLS = [
     "KOTAKBANK.NS",
 ]
 
-# yfinance period caps — use the longest useful history so AlphaTrend can warm up.
+# yfinance period caps — stay safely inside Yahoo limits.
+# Note: period="730d" for 1h often errors ("must be within the last 730 days").
 INTERVAL_PERIOD = {
     "5m": "60d",
     "15m": "60d",
-    "1h": "730d",
-    "4h": "730d",
+    "1h": "365d",
+    "4h": "365d",
     "1d": "2y",
     "1wk": "5y",
 }
@@ -207,18 +208,31 @@ def fetch_ohlcv(
     By default, incomplete intraday bars are dropped (closed-bar mode).
     Pass include_forming=True for the earlier live-but-unconfirmed read.
     """
+    import logging
+    import warnings
+
     symbol = normalize_symbol(symbol)
     yf_interval = "1h" if interval == "4h" else interval
     yf_period = period or INTERVAL_PERIOD.get(interval, "6mo")
 
-    data = yf.download(
-        symbol,
-        period=yf_period,
-        interval=yf_interval,
-        auto_adjust=True,
-        progress=False,
-        threads=False,
-    )
+    # Quiet Yahoo "Failed download / possibly delisted" spam in MTF scans
+    yf_logger = logging.getLogger("yfinance")
+    prev_level = yf_logger.level
+    yf_logger.setLevel(logging.CRITICAL)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            data = yf.download(
+                symbol,
+                period=yf_period,
+                interval=yf_interval,
+                auto_adjust=True,
+                progress=False,
+                threads=False,
+            )
+    finally:
+        yf_logger.setLevel(prev_level)
+
     if data.empty:
         raise RuntimeError(f"No data returned for {symbol} ({interval}, period={yf_period})")
 
