@@ -64,8 +64,22 @@ def test_summaries_to_frame():
     s = summarize_mtf([_tf("CCC", "1d", True, "BUY"), _tf("CCC", "1h", False)])
     df = summaries_to_frame([s], ["1h", "1d"])
     assert list(df["symbol"]) == ["CCC"]
+    assert list(df["ticker"]) == ["CCC"]
     assert "1d_trend" in df.columns
+    assert "1d_signal_time" in df.columns
+    assert "1d_trend_since" in df.columns
     assert "mtf_score" in df.columns
+
+
+def test_bare_ticker_and_format_ist():
+    from datafeed import bare_ticker, format_ist
+    import pandas as pd
+
+    assert bare_ticker("RELIANCE.NS") == "RELIANCE"
+    assert bare_ticker("TCS") == "TCS"
+    ts = pd.Timestamp("2026-08-11 10:15:00", tz="Asia/Kolkata")
+    assert format_ist(ts) == "2026-08-11 10:15 IST"
+    assert format_ist(None) is None
 
 
 if __name__ == "__main__":
@@ -73,4 +87,5 @@ if __name__ == "__main__":
     test_summarize_mtf_bearish()
     test_portfolio_metrics()
     test_summaries_to_frame()
+    test_bare_ticker_and_format_ist()
     print("MTF tests passed.")
