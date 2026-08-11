@@ -1,6 +1,10 @@
 # AlphaTrend Scanner
 
-Python port of [KivancOzbilgic's AlphaTrend](https://www.tradingview.com) Pine Script v5, plus a multi-symbol scanner.
+Python port of KivancOzbilgic's AlphaTrend Pine Script v5, with:
+
+- single-timeframe scanner
+- **multi-timeframe (MTF) confluence analysis**
+- **Streamlit dashboard** with desk metric numbers
 
 ## How AlphaTrend works
 
@@ -10,11 +14,8 @@ Python port of [KivancOzbilgic's AlphaTrend](https://www.tradingview.com) Pine S
 | Support trail | `upT = low − ATR × coeff` |
 | Resistance trail | `downT = high + ATR × coeff` |
 | Momentum gate | `MFI(hlc3, AP) ≥ 50` (or `RSI(close, AP) ≥ 50` if no volume) |
-| Line | Bullish → ratchet with `upT` (never falls). Bearish → ratchet with `downT` (never rises). |
-| BUY | `crossover(AlphaTrend, AlphaTrend[2])` and last opposing signal was SELL |
-| SELL | `crossunder(AlphaTrend, AlphaTrend[2])` and last opposing signal was BUY |
-
-The plot fill turns green when `AlphaTrend > AlphaTrend[2]`, red otherwise.
+| Line | Bullish → ratchet with `upT`. Bearish → ratchet with `downT`. |
+| BUY / SELL | Cross of `AlphaTrend` vs `AlphaTrend[2]`, alternating filter |
 
 ## Install
 
@@ -22,59 +23,77 @@ The plot fill turns green when `AlphaTrend > AlphaTrend[2]`, red otherwise.
 pip install -r requirements.txt
 ```
 
-## Scan
+## Dashboard (MTF + numbers)
 
 ```bash
-# Default watchlist, daily bars, last-bar signals
-python scanner.py
+streamlit run dashboard.py
+```
 
-# Custom symbols / timeframe / Pine inputs
-python scanner.py -s AAPL,MSFT,NVDA -i 1d -m 1.0 --ap 14
+The desk shows:
 
-# From file, only print active signals, wider lookback
-python scanner.py -f symbols.txt --signal-only -l 3
+| Number | Meaning |
+|--------|---------|
+| **MTF Score** | Weighted confluence −100…+100 across selected timeframes |
+| **Breadth** | % of watchlist symbols with bullish bias |
+| **Alignment** | Avg % of timeframes trending up per symbol |
+| **BUY TFs / SELL TFs** | Active signal counts across all frames |
+| **Dist vs AT** | Avg % distance of price to AlphaTrend |
 
-# No-volume mode (RSI gate, Pine novolumedata=true)
-python scanner.py -s BTC-USD,ETH-USD --no-volume -i 1d
+Also includes a timeframe heatmap, score bars, per-symbol detail chart, and CSV download.
 
-# Export CSV
-python scanner.py -f symbols.txt --csv results.csv
+## CLI scan
+
+```bash
+# Single timeframe
+python scanner.py -f symbols.txt -i 1d -l 3
+
+# Multi-timeframe confluence
+python scanner.py --mtf -f symbols.txt -l 3
+
+# Only strong MTF setups
+python scanner.py --mtf -s AAPL,MSFT,NVDA --mtf-min-score 40
+
+# Custom frames + CSV
+python scanner.py --mtf --mtf-frames 1h,4h,1d,1wk --csv mtf.csv
 ```
 
 ### CLI options
 
-| Flag | Meaning | Pine equivalent |
-|------|---------|-----------------|
-| `-m / --multiplier` | Trail width | `coeff` |
-| `--ap` | Common period | `AP` |
-| `--no-volume` | Use RSI instead of MFI | `novolumedata` |
-| `-i` | Bar interval | chart timeframe |
-| `-l` | Bars to search for a signal | confirmed vs live |
+| Flag | Meaning |
+|------|---------|
+| `-m / --multiplier` | Trail width (`coeff`) |
+| `--ap` | Common period (`AP`) |
+| `--no-volume` | RSI gate instead of MFI |
+| `-i` | Single-TF interval |
+| `--mtf` | Enable multi-timeframe mode |
+| `--mtf-frames` | Frames list (default `15m,1h,4h,1d,1wk`) |
+| `--mtf-min-score` | Filter by absolute MTF score |
+| `-l` | Signal lookback bars |
 
 ## Library use
 
 ```python
-import yfinance as yf
-from alphatrend import compute_alphatrend, latest_signal
+from mtf import analyze_symbol_mtf, scan_universe_mtf, portfolio_metrics
 
-df = yf.download("AAPL", period="6mo", interval="1d", auto_adjust=True, progress=False)
-if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
-    df.columns = [c[0] for c in df.columns]
+summary = analyze_symbol_mtf("AAPL", timeframes=["1h", "4h", "1d", "1wk"])
+print(summary["mtf_score"], summary["bias"], summary["alignment_pct"])
 
-out = compute_alphatrend(df, multiplier=1.0, period=14)
-print(latest_signal(out, lookback=1))
-print(out[["Close", "AlphaTrend", "buy_signal", "sell_signal"]].tail())
+rows = scan_universe_mtf(["AAPL", "MSFT", "NVDA"])
+print(portfolio_metrics(rows))
 ```
 
 ## Tests
 
 ```bash
 python test_alphatrend.py
+python test_mtf.py
 ```
 
 ## Files
 
-- `alphatrend.py` — indicator calculation
-- `scanner.py` — CLI multi-symbol scanner (yfinance)
+- `alphatrend.py` — indicator
+- `datafeed.py` — yfinance helpers
+- `mtf.py` — multi-timeframe scoring
+- `scanner.py` — CLI (single + MTF)
+- `dashboard.py` — Streamlit desk
 - `symbols.txt` — sample watchlist
-- `test_alphatrend.py` — offline unit tests

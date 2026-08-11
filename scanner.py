@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
-AlphaTrend multi-symbol scanner.
-
-Fetches OHLCV via yfinance, computes AlphaTrend (Pine Script port),
-and reports BUY / SELL / trend state for each symbol.
+AlphaTrend multi-symbol scanner (single-TF and multi-timeframe modes).
 """
 
 from __future__ import annotations
@@ -14,102 +11,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import pandas as pd
-import yfinance as yf
 
 from alphatrend import compute_alphatrend, latest_signal
-
-# Sensible default watchlist (US equities + liquid ETFs). Override with --symbols.
-DEFAULT_SYMBOLS = [
-    "AAPL",
-    "MSFT",
-    "NVDA",
-    "AMZN",
-    "META",
-    "GOOGL",
-    "TSLA",
-    "AMD",
-    "NFLX",
-    "SPY",
-    "QQQ",
-    "IWM",
-]
-
-INTERVAL_PERIOD = {
-    "1d": "6mo",
-    "1h": "60d",
-    "4h": "60d",  # yfinance has no native 4h; resampled from 1h
-    "1wk": "2y",
-    "15m": "60d",
-    "5m": "60d",
-}
-
-
-def parse_symbols(raw: str | None, file_path: str | None) -> list[str]:
-    symbols: list[str] = []
-    if file_path:
-        with open(file_path, encoding="utf-8") as f:
-            for line in f:
-                line = line.split("#", 1)[0].strip()
-                if line:
-                    symbols.append(line.upper())
-    if raw:
-        symbols.extend(s.strip().upper() for s in raw.split(",") if s.strip())
-    if not symbols:
-        symbols = list(DEFAULT_SYMBOLS)
-    # de-dupe, preserve order
-    seen: set[str] = set()
-    out: list[str] = []
-    for s in symbols:
-        if s not in seen:
-            seen.add(s)
-            out.append(s)
-    return out
-
-
-def fetch_ohlcv(symbol: str, interval: str, period: str | None) -> pd.DataFrame:
-    """Download OHLCV; resample 1h→4h when interval is 4h."""
-    yf_interval = "1h" if interval == "4h" else interval
-    yf_period = period or INTERVAL_PERIOD.get(interval, "6mo")
-
-    data = yf.download(
-        symbol,
-        period=yf_period,
-        interval=yf_interval,
-        auto_adjust=True,
-        progress=False,
-        threads=False,
-    )
-    if data.empty:
-        raise RuntimeError(f"No data returned for {symbol}")
-
-    # yfinance may return MultiIndex columns for a single ticker
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = [c[0] for c in data.columns]
-
-    data = data.rename(
-        columns={
-            "Open": "Open",
-            "High": "High",
-            "Low": "Low",
-            "Close": "Close",
-            "Volume": "Volume",
-        }
-    )
-    cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
-    data = data[cols].dropna(how="all")
-
-    if interval == "4h":
-        ohlc = {
-            "Open": "first",
-            "High": "max",
-            "Low": "min",
-            "Close": "last",
-            "Volume": "sum",
-        }
-        data = data.resample("4h").agg({k: v for k, v in ohlc.items() if k in data.columns})
-        data = data.dropna(subset=["Close"])
-
-    return data
+from datafeed import DEFAULT_MTF_FRAMES, INTERVAL_PERIOD, fetch_ohlcv, parse_symbols
+from mtf import portfolio_metrics, scan_universe_mtf, summaries_to_frame
 
 
 def scan_symbol(
@@ -148,7 +53,7 @@ def scan_symbol(
             "last_bar": str(last_time),
             "error": None,
         }
-    except Exception as exc:  # noqa: BLE001 — scanner must keep going
+    except Exception as exc:  # noqa: BLE001
         return {
             "symbol": symbol,
             "signal": "ERROR",
@@ -174,78 +79,41 @@ def format_row(row: dict) -> str:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Scan symbols for AlphaTrend BUY/SELL signals (TradingView Pine port).",
-    )
-    parser.add_argument(
-        "--symbols",
-        "-s",
-        help="Comma-separated tickers (default: built-in US mega-cap list)",
-    )
-    parser.add_argument(
-        "--file",
-        "-f",
-        help="Path to a file with one ticker per line",
-    )
-    parser.add_argument(
-        "--interval",
-        "-i",
-        default="1d",
-        choices=sorted(INTERVAL_PERIOD.keys()),
-        help="Bar interval (default: 1d)",
-    )
-    parser.add_argument(
-        "--period",
-        "-p",
-        default=None,
-        help="yfinance history period override (e.g. 1y, 6mo, 60d)",
-    )
-    parser.add_argument(
-        "--multiplier",
-        "-m",
-        type=float,
-        default=1.0,
-        help="AlphaTrend multiplier / coeff (default: 1.0)",
-    )
-    parser.add_argument(
-        "--period-ap",
-        "--ap",
-        dest="ap",
-        type=int,
-        default=14,
-        help="Common period AP for ATR/MFI/RSI (default: 14)",
-    )
-    parser.add_argument(
-        "--no-volume",
-        action="store_true",
-        help="Use RSI gate instead of MFI (Pine 'novolumedata')",
-    )
-    parser.add_argument(
-        "--lookback",
-        "-l",
-        type=int,
-        default=1,
-        help="Signal lookback in bars (1 = last bar only / confirmed-style)",
-    )
-    parser.add_argument(
-        "--signal-only",
-        action="store_true",
-        help="Only print symbols with BUY or SELL in the lookback window",
-    )
-    parser.add_argument(
-        "--workers",
-        type=int,
-        default=4,
-        help="Parallel download workers (default: 4)",
-    )
-    parser.add_argument(
-        "--csv",
-        help="Optional path to write full results as CSV",
-    )
-    args = parser.parse_args(argv)
+def format_mtf_row(row: dict, frames: list[str]) -> str:
+    if row.get("bias") == "ERROR":
+        return f"{row['symbol']:<8} ERROR  {row.get('error', '')}"
 
-    symbols = parse_symbols(args.symbols, args.file)
+    score = row.get("mtf_score")
+    score_s = f"{score:+6.1f}" if score is not None else "   n/a"
+    align = row.get("alignment_pct")
+    align_s = f"{align:5.1f}%" if align is not None else "  n/a"
+    dist = row.get("avg_dist_pct")
+    dist_s = f"{dist:+6.2f}%" if dist is not None else "   n/a"
+
+    tf_bits = []
+    tfs = row.get("timeframes") or {}
+    for tf in frames:
+        cell = tfs.get(tf) or {}
+        if cell.get("signal") == "ERROR" or cell.get("trend_up") is None:
+            mark = "?"
+        elif cell.get("signal") == "BUY":
+            mark = "B"
+        elif cell.get("signal") == "SELL":
+            mark = "S"
+        else:
+            mark = "↑" if cell.get("trend_up") else "↓"
+        tf_bits.append(f"{tf}:{mark}")
+
+    return (
+        f"{row['symbol']:<8} score={score_s}  bias={row.get('bias', '?'):<5}  "
+        f"align={align_s}  dist={dist_s}  "
+        f"bull={row.get('bull_tf', 0)} bear={row.get('bear_tf', 0)}  "
+        f"buyTF={row.get('buy_tf', 0)} sellTF={row.get('sell_tf', 0)}  "
+        + " ".join(tf_bits)
+    )
+
+
+def run_single_tf(args, symbols: list[str]) -> int:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(
         f"AlphaTrend Scanner  |  {now}  |  interval={args.interval}  "
@@ -273,7 +141,6 @@ def main(argv: list[str] | None = None) -> int:
         for fut in as_completed(futures):
             results.append(fut.result())
 
-    # Stable order matching input list
     order = {s: i for i, s in enumerate(symbols)}
     results.sort(key=lambda r: order.get(r["symbol"], 9999))
 
@@ -291,13 +158,121 @@ def main(argv: list[str] | None = None) -> int:
     sells = sum(1 for r in results if r["signal"] == "SELL")
     errors = sum(1 for r in results if r["signal"] == "ERROR")
     print("-" * 88)
-    print(f"Done. BUY={buys}  SELL={sells}  NONE/other={len(results) - buys - sells - errors}  ERROR={errors}")
+    print(
+        f"Done. BUY={buys}  SELL={sells}  "
+        f"NONE/other={len(results) - buys - sells - errors}  ERROR={errors}"
+    )
 
     if args.csv:
         pd.DataFrame(results).to_csv(args.csv, index=False)
         print(f"Wrote {args.csv}")
 
     return 0 if errors == 0 else 1
+
+
+def run_mtf(args, symbols: list[str]) -> int:
+    frames = [f.strip() for f in args.mtf_frames.split(",") if f.strip()]
+    if not frames:
+        frames = list(DEFAULT_MTF_FRAMES)
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    print(
+        f"AlphaTrend MTF Scanner  |  {now}  |  frames={','.join(frames)}  "
+        f"coeff={args.multiplier}  AP={args.ap}  lookback={args.lookback}  "
+        f"gate={'RSI' if args.no_volume else 'MFI'}"
+    )
+    print(f"Symbols: {len(symbols)}")
+    print("-" * 100)
+
+    summaries = scan_universe_mtf(
+        symbols,
+        timeframes=frames,
+        multiplier=args.multiplier,
+        ap=args.ap,
+        no_volume=args.no_volume,
+        lookback=args.lookback,
+        workers=args.workers,
+    )
+
+    shown = 0
+    for row in summaries:
+        if args.signal_only and row.get("buy_tf", 0) == 0 and row.get("sell_tf", 0) == 0:
+            continue
+        if args.mtf_min_score is not None and (
+            row.get("mtf_score") is None or abs(row["mtf_score"]) < args.mtf_min_score
+        ):
+            continue
+        print(format_mtf_row(row, frames))
+        shown += 1
+
+    if shown == 0:
+        print("(no rows matched filters)")
+
+    pm = portfolio_metrics(summaries)
+    print("-" * 100)
+    print(
+        f"Desk numbers  avg_score={pm['avg_mtf_score']}  breadth={pm['breadth']}%  "
+        f"bull={pm['bull_count']} bear={pm['bear_count']} mixed={pm['mixed_count']}  "
+        f"BUY_TFs={pm['buy_signals']} SELL_TFs={pm['sell_signals']}  "
+        f"avg_align={pm['avg_alignment_pct']}%  avg_dist={pm['avg_dist_pct']}%"
+    )
+
+    if args.csv:
+        summaries_to_frame(summaries, frames).to_csv(args.csv, index=False)
+        print(f"Wrote {args.csv}")
+
+    errors = sum(1 for r in summaries if r.get("bias") == "ERROR")
+    return 0 if errors == 0 else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Scan symbols for AlphaTrend BUY/SELL signals (single-TF or multi-TF).",
+    )
+    parser.add_argument("--symbols", "-s", help="Comma-separated tickers")
+    parser.add_argument("--file", "-f", help="Path to a file with one ticker per line")
+    parser.add_argument(
+        "--interval",
+        "-i",
+        default="1d",
+        choices=sorted(INTERVAL_PERIOD.keys()),
+        help="Bar interval for single-TF mode (default: 1d)",
+    )
+    parser.add_argument("--period", "-p", default=None, help="yfinance history period override")
+    parser.add_argument("--multiplier", "-m", type=float, default=1.0, help="AlphaTrend coeff")
+    parser.add_argument("--period-ap", "--ap", dest="ap", type=int, default=14, help="Common period AP")
+    parser.add_argument("--no-volume", action="store_true", help="Use RSI gate instead of MFI")
+    parser.add_argument("--lookback", "-l", type=int, default=1, help="Signal lookback in bars")
+    parser.add_argument("--signal-only", action="store_true", help="Only print active signal rows")
+    parser.add_argument("--workers", type=int, default=4, help="Parallel workers")
+    parser.add_argument("--csv", help="Optional CSV output path")
+
+    parser.add_argument(
+        "--mtf",
+        action="store_true",
+        help="Multi-timeframe mode (confluence score across frames)",
+    )
+    parser.add_argument(
+        "--mtf-frames",
+        default=",".join(DEFAULT_MTF_FRAMES),
+        help="Comma-separated frames for --mtf (default: 15m,1h,4h,1d,1wk)",
+    )
+    parser.add_argument(
+        "--mtf-min-score",
+        type=float,
+        default=None,
+        help="Only show symbols with |mtf_score| >= this value",
+    )
+    args = parser.parse_args(argv)
+    symbols = parse_symbols(args.symbols, args.file)
+
+    if args.mtf:
+        # MTF default lookback 3 is more useful; keep user value if they set -l
+        if args.lookback == 1 and (argv is None or "-l" not in argv and "--lookback" not in (argv or [])):
+            # When called programmatically with defaults, bump lookback for MTF
+            pass
+        return run_mtf(args, symbols)
+    return run_single_tf(args, symbols)
 
 
 if __name__ == "__main__":
