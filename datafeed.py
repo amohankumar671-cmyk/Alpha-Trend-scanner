@@ -8,6 +8,33 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
+IST = ZoneInfo("Asia/Kolkata")
+
+
+def format_ist(ts) -> str | None:
+    """Format a candle timestamp as IST for desk display / CSV."""
+    if ts is None or (isinstance(ts, float) and pd.isna(ts)):
+        return None
+    try:
+        stamp = pd.Timestamp(ts)
+    except (ValueError, TypeError):
+        return str(ts)
+    if pd.isna(stamp):
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.tz_localize(IST)
+    else:
+        stamp = stamp.tz_convert(IST)
+    return stamp.strftime("%Y-%m-%d %H:%M IST")
+
+
+def bare_ticker(symbol: str) -> str:
+    """RELIANCE.NS → RELIANCE (easy to paste into a broker)."""
+    s = (symbol or "").strip().upper()
+    if s.endswith(".NS") or s.endswith(".BO"):
+        return s[:-3]
+    return s
+
 DEFAULT_SYMBOLS = [
     "RELIANCE.NS",
     "TCS.NS",
@@ -46,7 +73,7 @@ INTERVAL_DELTA = {
 # Intraday intervals where evaluating a still-forming bar creates flicker.
 CLOSED_BAR_INTERVALS = frozenset({"5m", "15m", "1h", "60m", "4h"})
 
-DEFAULT_MTF_FRAMES = ("15m", "1h", "4h", "1d", "1wk")
+DEFAULT_MTF_FRAMES = ("5m", "15m", "1h", "4h", "1d", "1wk")
 
 # AlphaTrend needs AP bars for ATR/MFI plus a couple for AT[2] crosses.
 MIN_BARS_PADDING = 5

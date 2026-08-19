@@ -9,18 +9,26 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import pandas as pd
 
 from alphatrend import compute_alphatrend, latest_signal
+from autoscan import (
+    format_duration,
+    format_ist_clock,
+    is_nse_session,
+    resolve_interval_minutes,
+)
 from datafeed import (
     DEFAULT_MTF_FRAMES,
     INTERVAL_PERIOD,
     CLOSED_BAR_INTERVALS,
     drop_incomplete_bar,
     fetch_ohlcv,
+    format_ist,
     history_status,
     min_bars_required,
     parse_symbols,
@@ -72,11 +80,18 @@ def scan_symbol(
             "symbol": symbol,
             "signal": info["signal"],
             "bar_ago": info["bar_ago"],
+            "signal_time": str(info["signal_time"]) if info.get("signal_time") is not None else None,
+            "signal_time_ist": format_ist(info.get("signal_time")),
+            "freshness": info.get("freshness"),
+            "trend_since": str(info["trend_since"]) if info.get("trend_since") is not None else None,
+            "trend_since_ist": format_ist(info.get("trend_since")),
+            "trend_bars": info.get("trend_bars"),
             "close": info["close"],
             "alphatrend": info["alphatrend"],
             "trend_up": info["trend_up"],
             "price_vs_at": info["price_vs_at"],
             "last_bar": str(last_time),
+            "last_bar_ist": format_ist(last_time),
             "bars": len(at),
             "bars_needed": min_bars_required(ap),
             "dropped_forming": dropped,
@@ -102,15 +117,22 @@ def format_row(row: dict) -> str:
     sig = row["signal"]
     trend = "UP" if row.get("trend_up") else "DOWN"
     bar = "" if row.get("bar_ago") is None else f"  ({row['bar_ago']} bar(s) ago)"
+    fresh = row.get("freshness")
+    if fresh == "NEW":
+        bar = "  [NEW]"
+    elif fresh and row.get("bar_ago") is not None:
+        bar = f"  ({fresh})"
     at = row.get("alphatrend")
     close = row.get("close")
     pva = row.get("price_vs_at") or "-"
     at_s = f"{at:.4f}" if at is not None else "n/a"
     close_s = f"{close:.4f}" if close is not None else "n/a"
     closed = " closed" if row.get("dropped_forming") else ""
+    when = row.get("signal_time_ist") or ""
+    when_s = f"  @ {when}" if when else ""
     return (
         f"{row['symbol']:<14} {sig:<5}  trend={trend:<4}  "
-        f"price={close_s:>10}  AT={at_s:>10}  vs_AT={pva:<5}{bar}{closed}"
+        f"price={close_s:>10}  AT={at_s:>10}  vs_AT={pva:<5}{bar}{when_s}{closed}"
     )
 
 
@@ -375,7 +397,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mtf-frames",
         default=",".join(DEFAULT_MTF_FRAMES),
-        help="Comma-separated frames for --mtf (default: 15m,1h,4h,1d,1wk)",
+        help="Comma-separated frames for --mtf (default: 5m,15m,1h,4h,1d,1wk)",
     )
     parser.add_argument(
         "--mtf-min-score",
@@ -387,6 +409,25 @@ def main(argv: list[str] | None = None) -> int:
         "--list-fno",
         action="store_true",
         help="Print NSE F&O symbols and exit",
+    )
+    parser.add_argument(
+        "--loop",
+        action="store_true",
+        help=(
+            "Keep scanning: wait N minutes after each finished pass, then scan again. "
+            "Ctrl+C to stop."
+        ),
+    )
+    parser.add_argument(
+        "--loop-minutes",
+        type=int,
+        default=None,
+        help="Custom wait minutes between loop passes (default: match shortest --mtf-frames / --interval)",
+    )
+    parser.add_argument(
+        "--loop-market-hours",
+        action="store_true",
+        help="With --loop, pause while NSE cash session is closed (09:15–15:35 IST weekdays)",
     )
     args = parser.parse_args(argv)
 
@@ -402,9 +443,42 @@ def main(argv: list[str] | None = None) -> int:
         print("No symbols to scan.", file=sys.stderr)
         return 2
 
-    if args.mtf:
-        return run_mtf(args, symbols)
-    return run_single_tf(args, symbols)
+    def _once() -> int:
+        if args.mtf:
+            return run_mtf(args, symbols)
+        return run_single_tf(args, symbols)
+
+    if not args.loop:
+        return _once()
+
+    frames = [f.strip() for f in args.mtf_frames.split(",") if f.strip()] if args.mtf else [args.interval]
+    interval_min = resolve_interval_minutes(
+        frames,
+        mode="custom" if args.loop_minutes else "match_tf",
+        custom_minutes=args.loop_minutes or 15,
+    )
+    print(
+        f"Auto-loop ON · wait {interval_min} min after each finish · "
+        f"market_hours_only={args.loop_market_hours} · Ctrl+C to stop"
+    )
+    pass_no = 0
+    try:
+        while True:
+            if args.loop_market_hours and not is_nse_session():
+                print(f"[{format_ist_clock()}] Outside NSE hours — sleeping 60s…")
+                time.sleep(60)
+                continue
+            pass_no += 1
+            print(f"\n===== Loop pass {pass_no} @ {format_ist_clock()} =====")
+            rc = _once()
+            print(
+                f"[{format_ist_clock()}] Pass {pass_no} done (rc={rc}). "
+                f"Sleeping {interval_min} min ({format_duration(interval_min * 60)})…"
+            )
+            time.sleep(interval_min * 60)
+    except KeyboardInterrupt:
+        print("\nLoop stopped.")
+        return 0
 
 
 if __name__ == "__main__":

@@ -74,6 +74,24 @@ def test_latest_signal_shape():
     assert "signal" in info
     assert info["signal"] in ("BUY", "SELL", "NONE")
     assert info["close"] is not None
+    assert "trend_since" in info
+    assert "freshness" in info
+    if info["signal"] in ("BUY", "SELL"):
+        assert info["signal_time"] is not None
+        assert info["bar_ago"] is not None
+        assert info["freshness"] in ("NEW",) or "bar" in str(info["freshness"])
+
+
+def test_trend_change_bar_tracks_flip():
+    from alphatrend import trend_change_bar
+
+    df = _synthetic_ohlcv(n=120)
+    out = compute_alphatrend(df)
+    meta = trend_change_bar(out)
+    assert meta["trend_since"] is not None
+    assert meta["trend_bars"] is not None
+    assert meta["trend_bars"] >= 0
+    assert meta["trend_bars"] < len(out)
 
 
 if __name__ == "__main__":
@@ -84,4 +102,5 @@ if __name__ == "__main__":
     test_no_volume_mode()
     test_signals_are_boolean()
     test_latest_signal_shape()
+    test_trend_change_bar_tracks_flip()
     print("All tests passed.")

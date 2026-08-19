@@ -9,13 +9,22 @@ Launch:
 from __future__ import annotations
 
 import html
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from datafeed import DEFAULT_MTF_FRAMES, DEFAULT_SYMBOLS, parse_symbols
+from autoscan import (
+    IST,
+    format_duration,
+    format_ist_clock,
+    resolve_interval_minutes,
+    seconds_until_due,
+    should_run_now,
+    shortest_interval_minutes,
+)
+from datafeed import DEFAULT_MTF_FRAMES, DEFAULT_SYMBOLS, bare_ticker, parse_symbols
 from mtf import (
     analyze_symbol_mtf,
     portfolio_metrics,
@@ -124,6 +133,21 @@ h1, h2, h3, .brand {
 .metric-value.bear { color: var(--bear); }
 .metric-value.mix { color: var(--mix); }
 
+.copy-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92rem;
+  user-select: all;
+  -webkit-user-select: all;
+  cursor: text;
+  color: var(--ink);
+  line-height: 1.45;
+  word-break: break-all;
+}
+
 div[data-testid="stSidebar"] {
   background: #f7fafb;
   border-right: 1px solid var(--line);
@@ -171,26 +195,53 @@ def build_heatmap(summaries: list[dict], timeframes: list[str]) -> go.Figure:
     symbols = [s["symbol"] for s in summaries]
     z = []
     text = []
+    hover = []
     for s in summaries:
         row_z = []
         row_t = []
+        row_h = []
         tfs = s.get("timeframes") or {}
         for tf in timeframes:
             cell = tfs.get(tf) or {}
+            trend_lbl = (
+                "UP"
+                if cell.get("trend_up")
+                else ("DOWN" if cell.get("trend_up") is False else "n/a")
+            )
+            sig_time = cell.get("signal_time_ist") or "—"
+            trend_since = cell.get("trend_since_ist") or "—"
+            fresh = cell.get("freshness") or "—"
             if cell.get("signal") == "ERROR" or cell.get("trend_up") is None:
                 row_z.append(0)
                 row_t.append("n/a")
+                row_h.append(f"{s['symbol']} · {tf}<br>n/a")
             elif cell.get("signal") == "BUY":
                 row_z.append(2)
                 row_t.append("BUY / UP" if cell.get("trend_up") else "BUY")
+                row_h.append(
+                    f"{s['symbol']} · {tf}<br>BUY · trend {trend_lbl}"
+                    f"<br>signal @ {sig_time} ({fresh})"
+                    f"<br>trend since {trend_since}"
+                )
             elif cell.get("signal") == "SELL":
                 row_z.append(-2)
                 row_t.append("SELL / DOWN" if not cell.get("trend_up") else "SELL")
+                row_h.append(
+                    f"{s['symbol']} · {tf}<br>SELL · trend {trend_lbl}"
+                    f"<br>signal @ {sig_time} ({fresh})"
+                    f"<br>trend since {trend_since}"
+                )
             else:
                 row_z.append(1 if cell.get("trend_up") else -1)
                 row_t.append("UP" if cell.get("trend_up") else "DOWN")
+                row_h.append(
+                    f"{s['symbol']} · {tf}<br>trend {trend_lbl}"
+                    f"<br>no BUY/SELL in lookback"
+                    f"<br>trend since {trend_since}"
+                )
         z.append(row_z)
         text.append(row_t)
+        hover.append(row_h)
 
     fig = go.Figure(
         data=go.Heatmap(
@@ -199,6 +250,7 @@ def build_heatmap(summaries: list[dict], timeframes: list[str]) -> go.Figure:
             y=symbols,
             text=text,
             texttemplate="%{text}",
+            customdata=hover,
             colorscale=[
                 [0.0, "#b42318"],
                 [0.25, "#f0b4ae"],
@@ -208,7 +260,7 @@ def build_heatmap(summaries: list[dict], timeframes: list[str]) -> go.Figure:
             ],
             zmid=0,
             showscale=False,
-            hovertemplate="%{y} · %{x}<br>%{text}<extra></extra>",
+            hovertemplate="%{customdata}<extra></extra>",
         )
     )
     fig.update_layout(
@@ -358,6 +410,7 @@ def sidebar_controls():
         "Timeframes",
         options=["5m", "15m", "1h", "4h", "1d", "1wk"],
         default=default_tf,
+        help="5m included for short-term trend; signals use closed bars by default",
     )
     multiplier = st.sidebar.slider("Multiplier (coeff)", 0.5, 3.0, 1.0, 0.1)
     ap = st.sidebar.slider("Common period (AP)", 5, 50, 14, 1)
@@ -369,6 +422,59 @@ def sidebar_controls():
         help="Default off: 5m/15m/1h only use fully closed candles",
     )
     workers = st.sidebar.slider("Workers", 1, 8, 4)
+
+    st.sidebar.markdown("### Auto-scan")
+    auto_scan = st.sidebar.checkbox(
+        "Enable auto-scan",
+        value=False,
+        help=(
+            "Re-run the MTF scan automatically. Timer starts AFTER each scan finishes "
+            "so full F&O runs do not overlap."
+        ),
+    )
+    auto_mode = st.sidebar.radio(
+        "Interval source",
+        options=["Match shortest TF", "Custom minutes"],
+        index=0,
+        disabled=not auto_scan,
+        help="Match shortest TF: 5m→every 5 min, 15m→every 15 min, …",
+    )
+    custom_minutes = st.sidebar.number_input(
+        "Custom interval (minutes)",
+        min_value=1,
+        max_value=240,
+        value=15,
+        step=1,
+        disabled=not auto_scan or not auto_mode.startswith("Custom"),
+    )
+    market_hours_only = st.sidebar.checkbox(
+        "Only during NSE market hours",
+        value=True,
+        disabled=not auto_scan,
+        help="Weekdays 09:15–15:35 IST. Recommended for live desk use.",
+    )
+    auto_eod = st.sidebar.checkbox(
+        "Auto-save EOD after each scan",
+        value=False,
+        disabled=not auto_scan,
+        help="Writes reports/YYYY-MM-DD/ on every auto pass (can create many files).",
+    )
+
+    frames_preview = timeframes or default_tf
+    interval_minutes = resolve_interval_minutes(
+        frames_preview,
+        mode="custom" if auto_mode.startswith("Custom") else "match_tf",
+        custom_minutes=int(custom_minutes),
+    )
+    if auto_scan:
+        matched = shortest_interval_minutes(frames_preview)
+        st.sidebar.caption(
+            f"Will wait **{interval_minutes} min** after each finished scan"
+            + (f" (shortest TF={matched}m)" if auto_mode.startswith("Match") else "")
+            + ". Tip: full F&O×6 frames often takes >5m — use Limit or fewer frames, "
+            "or set Custom ≥ 15–30."
+        )
+
     run = st.sidebar.button("Run MTF scan", type="primary", use_container_width=True)
 
     if universe.startswith("NSE"):
@@ -384,7 +490,7 @@ def sidebar_controls():
 
     return {
         "symbols": symbols,
-        "timeframes": timeframes or default_tf,
+        "timeframes": frames_preview,
         "multiplier": multiplier,
         "ap": ap,
         "lookback": lookback,
@@ -393,7 +499,69 @@ def sidebar_controls():
         "workers": workers,
         "run": run,
         "universe": universe,
+        "auto_scan": auto_scan,
+        "auto_mode": auto_mode,
+        "interval_minutes": interval_minutes,
+        "market_hours_only": market_hours_only,
+        "auto_eod": auto_eod,
     }
+
+
+def execute_scan(cfg: dict) -> list[dict]:
+    """Run one MTF universe scan and optionally save EOD."""
+    summaries = scan_universe_mtf(
+        cfg["symbols"],
+        timeframes=cfg["timeframes"],
+        multiplier=cfg["multiplier"],
+        ap=cfg["ap"],
+        no_volume=cfg["no_volume"],
+        lookback=cfg["lookback"],
+        workers=cfg["workers"],
+        include_forming=cfg["include_forming"],
+    )
+    if cfg.get("auto_eod"):
+        save_mtf_eod(
+            summaries,
+            cfg["timeframes"],
+            lookback=cfg["lookback"],
+            base_dir="reports",
+        )
+    return summaries
+
+
+@st.fragment(run_every=timedelta(seconds=15))
+def auto_scan_watchdog(cfg: dict) -> None:
+    """Lightweight ticker: when auto-scan is due, request a full-app rerun scan."""
+    if not cfg.get("auto_scan"):
+        st.caption("Auto-scan: off")
+        return
+
+    last = st.session_state.get("last_scan_finished_at")
+    running = bool(st.session_state.get("scan_running"))
+    due, reason = should_run_now(
+        auto_enabled=True,
+        last_finished_at=last,
+        interval_minutes=cfg["interval_minutes"],
+        market_hours_only=cfg.get("market_hours_only", True),
+        scan_running=running,
+    )
+    wait = seconds_until_due(last, cfg["interval_minutes"])
+    last_s = format_ist_clock(last) if last else "never"
+    st.info(
+        f"Auto-scan ON · every {cfg['interval_minutes']} min after finish · "
+        f"last finished {last_s} · {reason}"
+        + (f" ({format_duration(wait)} left)" if wait > 0 and not due else "")
+    )
+
+    if not due:
+        return
+
+    # Already requested — main() will run the scan on this script pass.
+    if st.session_state.get("auto_scan_due"):
+        return
+
+    st.session_state.auto_scan_due = True
+    st.rerun()
 
 
 def main() -> None:
@@ -401,7 +569,7 @@ def main() -> None:
         """
 <div class="brand-wrap">
   <p class="brand">AlphaTrend</p>
-  <p class="brand-sub">NSE F&amp;O signal desk — validate AlphaTrend on closed 5m/15m/1h candles across the full derivatives universe.</p>
+  <p class="brand-sub">NSE F&amp;O signal desk — validate AlphaTrend on closed 5m/15m/1h candles across the full derivatives universe. Hover heatmap cells for signal time · copy tickers below the watchlist. Optional auto-scan re-runs after each interval.</p>
 </div>
 """,
         unsafe_allow_html=True,
@@ -411,26 +579,37 @@ def main() -> None:
     if "summaries" not in st.session_state:
         st.session_state.summaries = None
         st.session_state.cfg = None
+    if "scan_running" not in st.session_state:
+        st.session_state.scan_running = False
+    if "last_scan_finished_at" not in st.session_state:
+        st.session_state.last_scan_finished_at = None
+    if "auto_scan_due" not in st.session_state:
+        st.session_state.auto_scan_due = False
 
-    if cfg["run"]:
-        with st.spinner(f"Scanning {len(cfg['symbols'])} symbols × {len(cfg['timeframes'])} frames…"):
-            summaries = scan_universe_mtf(
-                cfg["symbols"],
-                timeframes=cfg["timeframes"],
-                multiplier=cfg["multiplier"],
-                ap=cfg["ap"],
-                no_volume=cfg["no_volume"],
-                lookback=cfg["lookback"],
-                workers=cfg["workers"],
-                include_forming=cfg["include_forming"],
-            )
-            # Re-fetch one symbol detail with series kept for chart (already in _raw_rows)
-            st.session_state.summaries = summaries
-            st.session_state.cfg = cfg
+    auto_scan_watchdog(cfg)
+
+    trigger = cfg["run"] or bool(st.session_state.auto_scan_due)
+    if trigger and not st.session_state.scan_running:
+        st.session_state.auto_scan_due = False
+        st.session_state.scan_running = True
+        try:
+            with st.spinner(
+                f"Scanning {len(cfg['symbols'])} symbols × {len(cfg['timeframes'])} frames…"
+            ):
+                summaries = execute_scan(cfg)
+                st.session_state.summaries = summaries
+                st.session_state.cfg = cfg
+                st.session_state.last_scan_finished_at = datetime.now(IST)
+                st.session_state.scan_count = int(st.session_state.get("scan_count", 0)) + 1
+        finally:
+            st.session_state.scan_running = False
 
     summaries = st.session_state.summaries
     if not summaries:
-        st.info("Set symbols & timeframes in the sidebar, then click **Run MTF scan**.")
+        st.info(
+            "Set symbols & timeframes in the sidebar, then click **Run MTF scan** "
+            "(or enable **Auto-scan**)."
+        )
         return
 
     active_cfg = st.session_state.cfg or cfg
@@ -439,8 +618,16 @@ def main() -> None:
     metric_strip(pm)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    finished = st.session_state.get("last_scan_finished_at")
+    finished_s = format_ist_clock(finished) if finished else "—"
+    auto_bit = (
+        f" · auto={active_cfg.get('interval_minutes')}m"
+        if active_cfg.get("auto_scan") or cfg.get("auto_scan")
+        else ""
+    )
     st.caption(
-        f"Updated {now} · universe={active_cfg.get('universe', 'custom')} · "
+        f"Updated {now} · last finish {finished_s} · scans={st.session_state.get('scan_count', 0)}"
+        f"{auto_bit} · universe={active_cfg.get('universe', 'custom')} · "
         f"symbols={len(active_cfg['symbols'])} · coeff={active_cfg['multiplier']} · "
         f"AP={active_cfg['ap']} · lookback={active_cfg['lookback']} · "
         f"gate={'RSI' if active_cfg['no_volume'] else 'MFI'} · "
@@ -460,8 +647,9 @@ def main() -> None:
 
     st.subheader("Watchlist numbers")
     show = table.copy()
-    # prettier column order
+    # Prefer copy-friendly ticker first, then Yahoo symbol
     base_cols = [
+        "ticker",
         "symbol",
         "mtf_score",
         "bias",
@@ -473,8 +661,20 @@ def main() -> None:
         "avg_dist_pct",
         "close",
     ]
-    extra = [c for c in show.columns if c not in base_cols]
-    show = show[base_cols + extra]
+    # Keep trend/signal/time columns in a readable order per TF
+    extra = []
+    for tf in frames:
+        for suffix in ("_trend", "_signal", "_fresh", "_signal_time", "_trend_since", "_dist"):
+            col = f"{tf}{suffix}"
+            if col in show.columns:
+                extra.append(col)
+    leftover = [c for c in show.columns if c not in base_cols and c not in extra]
+    show = show[[c for c in base_cols + extra + leftover if c in show.columns]]
+
+    st.caption(
+        "NEW = signal on the latest closed bar · “N bar(s) ago” = still inside lookback but older. "
+        "trend_since = when the current UP/DOWN direction started."
+    )
     st.dataframe(
         show.style.format(
             {
@@ -487,8 +687,61 @@ def main() -> None:
         ),
         use_container_width=True,
         hide_index=True,
-        height=min(420, 48 + 35 * len(show)),
+        height=min(420, 48 + 35 * min(len(show), 12)),
+        column_config={
+            "ticker": st.column_config.TextColumn("ticker", help="Bare name — select cell and Ctrl+C"),
+            "symbol": st.column_config.TextColumn("symbol", help="Yahoo ticker e.g. RELIANCE.NS"),
+        },
     )
+
+    # Easy live copy of names (Streamlit tables are awkward to multi-select)
+    st.markdown("##### Copy stock names")
+    copy_mode = st.radio(
+        "Copy list",
+        options=["Active signals only", "All scanned", "Selected symbol"],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    active_syms = [
+        s["symbol"]
+        for s in summaries
+        if (s.get("buy_tf") or 0) > 0 or (s.get("sell_tf") or 0) > 0
+    ]
+    if copy_mode.startswith("Active"):
+        copy_syms = active_syms or [s["symbol"] for s in summaries[:20]]
+    elif copy_mode.startswith("All"):
+        copy_syms = [s["symbol"] for s in summaries]
+    else:
+        copy_syms = []  # filled after selectbox below — placeholder for now
+
+    # Selected-symbol copy is wired after the detail picker; for other modes show now.
+    if not copy_mode.startswith("Selected"):
+        bare = [bare_ticker(s) for s in copy_syms]
+        c_a, c_b = st.columns(2)
+        with c_a:
+            st.caption("Bare tickers (broker paste) — click text, Ctrl+A, Ctrl+C")
+            st.markdown(
+                f'<div class="copy-box">{html.escape(", ".join(bare))}</div>',
+                unsafe_allow_html=True,
+            )
+            st.text_area(
+                "bare_copy",
+                value="\n".join(bare),
+                height=100,
+                label_visibility="collapsed",
+            )
+        with c_b:
+            st.caption("Yahoo symbols (.NS)")
+            st.markdown(
+                f'<div class="copy-box">{html.escape(", ".join(copy_syms))}</div>',
+                unsafe_allow_html=True,
+            )
+            st.text_area(
+                "yahoo_copy",
+                value="\n".join(copy_syms),
+                height=100,
+                label_visibility="collapsed",
+            )
 
     st.subheader("Symbol detail")
     symbols = [s["symbol"] for s in summaries]
@@ -497,6 +750,17 @@ def main() -> None:
         pick = st.selectbox("Symbol", symbols)
     with c2:
         focus_tf = st.selectbox("Chart timeframe", frames, index=min(3, len(frames) - 1))
+
+    # Selected-symbol copy panel
+    if copy_mode.startswith("Selected"):
+        bare_one = bare_ticker(pick)
+        st.markdown("##### Copy selected")
+        st.markdown(
+            f'<div class="copy-box">{html.escape(bare_one)} &nbsp;&nbsp;|&nbsp;&nbsp; '
+            f'{html.escape(pick)}</div>',
+            unsafe_allow_html=True,
+        )
+        st.code(f"{bare_one}\n{pick}", language=None)
 
     summary = next(s for s in summaries if s["symbol"] == pick)
 
@@ -529,7 +793,12 @@ def main() -> None:
             {
                 "timeframe": tf,
                 "trend": "UP" if cell.get("trend_up") else ("DOWN" if cell.get("trend_up") is False else "—"),
+                "trend_since (IST)": cell.get("trend_since_ist") or "—",
+                "trend_bars": cell.get("trend_bars"),
                 "signal": cell.get("signal"),
+                "freshness": cell.get("freshness") or "—",
+                "signal_time (IST)": cell.get("signal_time_ist") or "—",
+                "last_bar (IST)": cell.get("last_bar_ist") or "—",
                 "dist_pct": cell.get("dist_pct"),
                 "atr_pct": cell.get("atr_pct"),
                 "close": cell.get("close"),

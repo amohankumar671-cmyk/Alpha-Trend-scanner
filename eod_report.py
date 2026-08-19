@@ -90,7 +90,9 @@ def save_single_tf_eod(
                 f"  {r.get('signal'):<4}  {r.get('symbol'):<14}  "
                 f"close={r.get('close')}  AT={r.get('alphatrend')}  "
                 f"trend={'UP' if r.get('trend_up') else 'DOWN'}  "
-                f"bar_ago={r.get('bar_ago')}"
+                f"bar_ago={r.get('bar_ago')}  "
+                f"at={r.get('signal_time_ist') or '-'}  "
+                f"fresh={r.get('freshness') or '-'}"
             )
     lines.append("")
     lines.append(f"Files: {all_path.name}, {sig_path.name}")
@@ -143,6 +145,9 @@ def save_mtf_eod(
             row[f"{tf}_trend"] = (
                 "UP" if cell.get("trend_up") else ("DOWN" if cell.get("trend_up") is False else None)
             )
+            row[f"{tf}_signal_time"] = cell.get("signal_time_ist")
+            row[f"{tf}_fresh"] = cell.get("freshness")
+            row[f"{tf}_trend_since"] = cell.get("trend_since_ist")
         active_rows.append(row)
 
     sig_path = out_dir / "eod_mtf_signals.csv"
