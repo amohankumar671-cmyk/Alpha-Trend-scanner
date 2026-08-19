@@ -9,12 +9,21 @@ Launch:
 from __future__ import annotations
 
 import html
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from autoscan import (
+    IST,
+    format_duration,
+    format_ist_clock,
+    resolve_interval_minutes,
+    seconds_until_due,
+    should_run_now,
+    shortest_interval_minutes,
+)
 from datafeed import DEFAULT_MTF_FRAMES, DEFAULT_SYMBOLS, bare_ticker, parse_symbols
 from mtf import (
     analyze_symbol_mtf,
@@ -413,6 +422,59 @@ def sidebar_controls():
         help="Default off: 5m/15m/1h only use fully closed candles",
     )
     workers = st.sidebar.slider("Workers", 1, 8, 4)
+
+    st.sidebar.markdown("### Auto-scan")
+    auto_scan = st.sidebar.checkbox(
+        "Enable auto-scan",
+        value=False,
+        help=(
+            "Re-run the MTF scan automatically. Timer starts AFTER each scan finishes "
+            "so full F&O runs do not overlap."
+        ),
+    )
+    auto_mode = st.sidebar.radio(
+        "Interval source",
+        options=["Match shortest TF", "Custom minutes"],
+        index=0,
+        disabled=not auto_scan,
+        help="Match shortest TF: 5m→every 5 min, 15m→every 15 min, …",
+    )
+    custom_minutes = st.sidebar.number_input(
+        "Custom interval (minutes)",
+        min_value=1,
+        max_value=240,
+        value=15,
+        step=1,
+        disabled=not auto_scan or not auto_mode.startswith("Custom"),
+    )
+    market_hours_only = st.sidebar.checkbox(
+        "Only during NSE market hours",
+        value=True,
+        disabled=not auto_scan,
+        help="Weekdays 09:15–15:35 IST. Recommended for live desk use.",
+    )
+    auto_eod = st.sidebar.checkbox(
+        "Auto-save EOD after each scan",
+        value=False,
+        disabled=not auto_scan,
+        help="Writes reports/YYYY-MM-DD/ on every auto pass (can create many files).",
+    )
+
+    frames_preview = timeframes or default_tf
+    interval_minutes = resolve_interval_minutes(
+        frames_preview,
+        mode="custom" if auto_mode.startswith("Custom") else "match_tf",
+        custom_minutes=int(custom_minutes),
+    )
+    if auto_scan:
+        matched = shortest_interval_minutes(frames_preview)
+        st.sidebar.caption(
+            f"Will wait **{interval_minutes} min** after each finished scan"
+            + (f" (shortest TF={matched}m)" if auto_mode.startswith("Match") else "")
+            + ". Tip: full F&O×6 frames often takes >5m — use Limit or fewer frames, "
+            "or set Custom ≥ 15–30."
+        )
+
     run = st.sidebar.button("Run MTF scan", type="primary", use_container_width=True)
 
     if universe.startswith("NSE"):
@@ -428,7 +490,7 @@ def sidebar_controls():
 
     return {
         "symbols": symbols,
-        "timeframes": timeframes or default_tf,
+        "timeframes": frames_preview,
         "multiplier": multiplier,
         "ap": ap,
         "lookback": lookback,
@@ -437,7 +499,69 @@ def sidebar_controls():
         "workers": workers,
         "run": run,
         "universe": universe,
+        "auto_scan": auto_scan,
+        "auto_mode": auto_mode,
+        "interval_minutes": interval_minutes,
+        "market_hours_only": market_hours_only,
+        "auto_eod": auto_eod,
     }
+
+
+def execute_scan(cfg: dict) -> list[dict]:
+    """Run one MTF universe scan and optionally save EOD."""
+    summaries = scan_universe_mtf(
+        cfg["symbols"],
+        timeframes=cfg["timeframes"],
+        multiplier=cfg["multiplier"],
+        ap=cfg["ap"],
+        no_volume=cfg["no_volume"],
+        lookback=cfg["lookback"],
+        workers=cfg["workers"],
+        include_forming=cfg["include_forming"],
+    )
+    if cfg.get("auto_eod"):
+        save_mtf_eod(
+            summaries,
+            cfg["timeframes"],
+            lookback=cfg["lookback"],
+            base_dir="reports",
+        )
+    return summaries
+
+
+@st.fragment(run_every=timedelta(seconds=15))
+def auto_scan_watchdog(cfg: dict) -> None:
+    """Lightweight ticker: when auto-scan is due, request a full-app rerun scan."""
+    if not cfg.get("auto_scan"):
+        st.caption("Auto-scan: off")
+        return
+
+    last = st.session_state.get("last_scan_finished_at")
+    running = bool(st.session_state.get("scan_running"))
+    due, reason = should_run_now(
+        auto_enabled=True,
+        last_finished_at=last,
+        interval_minutes=cfg["interval_minutes"],
+        market_hours_only=cfg.get("market_hours_only", True),
+        scan_running=running,
+    )
+    wait = seconds_until_due(last, cfg["interval_minutes"])
+    last_s = format_ist_clock(last) if last else "never"
+    st.info(
+        f"Auto-scan ON · every {cfg['interval_minutes']} min after finish · "
+        f"last finished {last_s} · {reason}"
+        + (f" ({format_duration(wait)} left)" if wait > 0 and not due else "")
+    )
+
+    if not due:
+        return
+
+    # Already requested — main() will run the scan on this script pass.
+    if st.session_state.get("auto_scan_due"):
+        return
+
+    st.session_state.auto_scan_due = True
+    st.rerun()
 
 
 def main() -> None:
@@ -445,7 +569,7 @@ def main() -> None:
         """
 <div class="brand-wrap">
   <p class="brand">AlphaTrend</p>
-  <p class="brand-sub">NSE F&amp;O signal desk — validate AlphaTrend on closed 5m/15m/1h candles across the full derivatives universe. Hover heatmap cells for signal time · copy tickers below the watchlist.</p>
+  <p class="brand-sub">NSE F&amp;O signal desk — validate AlphaTrend on closed 5m/15m/1h candles across the full derivatives universe. Hover heatmap cells for signal time · copy tickers below the watchlist. Optional auto-scan re-runs after each interval.</p>
 </div>
 """,
         unsafe_allow_html=True,
@@ -455,26 +579,37 @@ def main() -> None:
     if "summaries" not in st.session_state:
         st.session_state.summaries = None
         st.session_state.cfg = None
+    if "scan_running" not in st.session_state:
+        st.session_state.scan_running = False
+    if "last_scan_finished_at" not in st.session_state:
+        st.session_state.last_scan_finished_at = None
+    if "auto_scan_due" not in st.session_state:
+        st.session_state.auto_scan_due = False
 
-    if cfg["run"]:
-        with st.spinner(f"Scanning {len(cfg['symbols'])} symbols × {len(cfg['timeframes'])} frames…"):
-            summaries = scan_universe_mtf(
-                cfg["symbols"],
-                timeframes=cfg["timeframes"],
-                multiplier=cfg["multiplier"],
-                ap=cfg["ap"],
-                no_volume=cfg["no_volume"],
-                lookback=cfg["lookback"],
-                workers=cfg["workers"],
-                include_forming=cfg["include_forming"],
-            )
-            # Re-fetch one symbol detail with series kept for chart (already in _raw_rows)
-            st.session_state.summaries = summaries
-            st.session_state.cfg = cfg
+    auto_scan_watchdog(cfg)
+
+    trigger = cfg["run"] or bool(st.session_state.auto_scan_due)
+    if trigger and not st.session_state.scan_running:
+        st.session_state.auto_scan_due = False
+        st.session_state.scan_running = True
+        try:
+            with st.spinner(
+                f"Scanning {len(cfg['symbols'])} symbols × {len(cfg['timeframes'])} frames…"
+            ):
+                summaries = execute_scan(cfg)
+                st.session_state.summaries = summaries
+                st.session_state.cfg = cfg
+                st.session_state.last_scan_finished_at = datetime.now(IST)
+                st.session_state.scan_count = int(st.session_state.get("scan_count", 0)) + 1
+        finally:
+            st.session_state.scan_running = False
 
     summaries = st.session_state.summaries
     if not summaries:
-        st.info("Set symbols & timeframes in the sidebar, then click **Run MTF scan**.")
+        st.info(
+            "Set symbols & timeframes in the sidebar, then click **Run MTF scan** "
+            "(or enable **Auto-scan**)."
+        )
         return
 
     active_cfg = st.session_state.cfg or cfg
@@ -483,8 +618,16 @@ def main() -> None:
     metric_strip(pm)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    finished = st.session_state.get("last_scan_finished_at")
+    finished_s = format_ist_clock(finished) if finished else "—"
+    auto_bit = (
+        f" · auto={active_cfg.get('interval_minutes')}m"
+        if active_cfg.get("auto_scan") or cfg.get("auto_scan")
+        else ""
+    )
     st.caption(
-        f"Updated {now} · universe={active_cfg.get('universe', 'custom')} · "
+        f"Updated {now} · last finish {finished_s} · scans={st.session_state.get('scan_count', 0)}"
+        f"{auto_bit} · universe={active_cfg.get('universe', 'custom')} · "
         f"symbols={len(active_cfg['symbols'])} · coeff={active_cfg['multiplier']} · "
         f"AP={active_cfg['ap']} · lookback={active_cfg['lookback']} · "
         f"gate={'RSI' if active_cfg['no_volume'] else 'MFI'} · "

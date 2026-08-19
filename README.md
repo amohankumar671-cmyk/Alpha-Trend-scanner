@@ -116,6 +116,15 @@ Open the URL shown (usually `http://localhost:8501`).
 - Each timeframe shows **signal_time (IST)** and **freshness** (`NEW` vs `N bar(s) ago`).
 - **trend_since** = when the current UP/DOWN direction started on that frame.
 - Use **Copy stock names** (text boxes) to Ctrl+A / Ctrl+C bare tickers for your broker.
+- **Auto-scan** (sidebar): enable after one manual **Run MTF scan**. It waits N minutes *after each scan finishes* (N = shortest TF or custom), optionally only in NSE market hours.
+
+### Auto-scan from CLI (no browser)
+
+```bat
+python scanner.py --fno --mtf --mtf-frames 15m,1h,1d -l 3 --eod --loop --loop-minutes 15 --loop-market-hours
+```
+
+Leave the window open; Ctrl+C stops the loop.
 
 ### Smoke test
 
@@ -150,4 +159,5 @@ python test_alphatrend.py
 python test_mtf.py
 python test_closed_bars.py
 python test_eod_report.py
+python test_autoscan.py
 ```

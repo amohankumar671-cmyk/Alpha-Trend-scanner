@@ -9,12 +9,19 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import pandas as pd
 
 from alphatrend import compute_alphatrend, latest_signal
+from autoscan import (
+    format_duration,
+    format_ist_clock,
+    is_nse_session,
+    resolve_interval_minutes,
+)
 from datafeed import (
     DEFAULT_MTF_FRAMES,
     INTERVAL_PERIOD,
@@ -403,6 +410,25 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print NSE F&O symbols and exit",
     )
+    parser.add_argument(
+        "--loop",
+        action="store_true",
+        help=(
+            "Keep scanning: wait N minutes after each finished pass, then scan again. "
+            "Ctrl+C to stop."
+        ),
+    )
+    parser.add_argument(
+        "--loop-minutes",
+        type=int,
+        default=None,
+        help="Custom wait minutes between loop passes (default: match shortest --mtf-frames / --interval)",
+    )
+    parser.add_argument(
+        "--loop-market-hours",
+        action="store_true",
+        help="With --loop, pause while NSE cash session is closed (09:15–15:35 IST weekdays)",
+    )
     args = parser.parse_args(argv)
 
     if args.list_fno:
@@ -417,9 +443,42 @@ def main(argv: list[str] | None = None) -> int:
         print("No symbols to scan.", file=sys.stderr)
         return 2
 
-    if args.mtf:
-        return run_mtf(args, symbols)
-    return run_single_tf(args, symbols)
+    def _once() -> int:
+        if args.mtf:
+            return run_mtf(args, symbols)
+        return run_single_tf(args, symbols)
+
+    if not args.loop:
+        return _once()
+
+    frames = [f.strip() for f in args.mtf_frames.split(",") if f.strip()] if args.mtf else [args.interval]
+    interval_min = resolve_interval_minutes(
+        frames,
+        mode="custom" if args.loop_minutes else "match_tf",
+        custom_minutes=args.loop_minutes or 15,
+    )
+    print(
+        f"Auto-loop ON · wait {interval_min} min after each finish · "
+        f"market_hours_only={args.loop_market_hours} · Ctrl+C to stop"
+    )
+    pass_no = 0
+    try:
+        while True:
+            if args.loop_market_hours and not is_nse_session():
+                print(f"[{format_ist_clock()}] Outside NSE hours — sleeping 60s…")
+                time.sleep(60)
+                continue
+            pass_no += 1
+            print(f"\n===== Loop pass {pass_no} @ {format_ist_clock()} =====")
+            rc = _once()
+            print(
+                f"[{format_ist_clock()}] Pass {pass_no} done (rc={rc}). "
+                f"Sleeping {interval_min} min ({format_duration(interval_min * 60)})…"
+            )
+            time.sleep(interval_min * 60)
+    except KeyboardInterrupt:
+        print("\nLoop stopped.")
+        return 0
 
 
 if __name__ == "__main__":
